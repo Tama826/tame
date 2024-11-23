@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <link
+        rel="stylesheet"
+        type="text/css"
+        href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css"
+    />
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script>
+    <script src="https://cdn.jsdelivr.net/gh/pythonpad/pythonpad.js@v0.1.37/lib/pythonpad.bundle.js"></script>
+
+    <style>
+        /* Set background color and ensure the height fits the device */
+        body {
+            background-image: url('https://cdn.glitch.global/4b772a27-7a73-41b5-ad11-0d795333176a/76d8f6ca-fcb0-44b4-bafc-228309553491.webp?v=1732353991864'); /* Add your background image URL here */
+            background-size: cover; /* Ensures the image covers the entire page */
+            background-position: center; /* Centers the background image */
+            background-repeat: no-repeat; /* Prevents the image from repeating */
+            margin: 0;
+            padding: 0;
+            height: 100vh; /* Full height of the device */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; /* Ensure footer is at the bottom */
+            align-items: center; /* Centering the content horizontally */
+        }
+
+        #pad {
+            height: 40%; /* Set the height to 40% of the device's screen height */
+            width: 100%; /* Full width */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(51, 51, 51, 0.7); /* Optional semi-transparent background for pad */
+            margin-bottom: 40px; /* Adds more space between pad and footer */
+        }
+
+        /* Dropdown Button Style */
+        .dropdown {
+            position: absolute;
+            top: 45%; /* Adjusts the dropdown position up to just below the pad */
+            text-align: center; /* Center the dropdown */
+        }
+
+        .dropdown button {
+            background-color: black; /* Black background for the button */
+            color: gold; /* Gold text color */
+            font-size: 22px; /* Slightly bigger font size */
+            padding: 25px 40px; /* Increase vertical padding for bigger size */
+            border: none;
+            border-radius: 50px; /* Add rounded corners */
+            cursor: pointer;
+            width: 300px; /* Wider button */
+            height: 80px; /* Set a fixed height */
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a subtle shadow */
+        }
+
+        .dropdown button:hover {
+            background-color: #333; /* Darker background color on hover */
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #111;
+            min-width: 300px; /* Same width as the button */
+            box-shadow: 0px 8px 16px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+            border-radius: 10px; /* Rounded corners for the dropdown */
+        }
+
+        /* Dropdown items style */
+        .dropdown-content a {
+            color: gold; /* Gold color for the dropdown items */
+            padding: 18px 40px; /* Padding to match button height */
+            text-decoration: none;
+            display: block;
+            border-bottom: 1px solid #333;
+            border-radius: 10px; /* Same radius as the button */
+            transition: background-color 0.3s ease;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #333; /* Darker background color on hover */
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+            animation: dropdownAnimation 0.6s ease-out; /* Dropdown animation */
+        }
+
+        @keyframes dropdownAnimation {
+            0% {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Footer with smooth animation */
+        footer {
+            background-color: #111;
+            color: green;
+            text-align: center;
+            padding: 20px;
+            position: fixed;
+            left: 0;
+            width: 100%;
+            bottom: 0;
+            opacity: 0;
+            animation: slideInFromRight 2s forwards; /* Increased duration to 2 seconds */
+        }
+
+        @keyframes slideInFromRight {
+            0% {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            100% {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        footer img {
+            width: 100px; /* Image width */
+            height: 100px; /* Image height */
+            border-radius: 50%; /* Make the image round */
+            border: 3px solid white; /* Optional border around image */
+        }
+
+        footer p {
+            font-size: 16px;
+            color: green;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div id="pad"></div>
+
+    <script>
+        // Create a Pythonpad instance in the element with an id "pad".
+        Pythonpad("pad", { src: 'print(" እኔ ከአንተ ጋር ነኝና አትፍራ እኔ አምላክህ ነኝና አትደንግጥ፤ አበረታሃለሁ እረዳህማለሁ በጽድቄም ቀኝ ደግፌ እይዝሃለሁ ,ኢሳይያስ 41:9-10")' });
+    </script>
+
+    <!-- Dropdown Button -->
+    <div class="dropdown">
+        <button>Tools</button>
+        <div class="dropdown-content">
+            <a href="https://www.example1.com" target="_blank">Download Worlds</a>
+            <a href="https://www.example2.com" target="_blank">How to setup world?</a>
+            <a href="https://www.example3.com" target="_blank">Cs1graphics</a>
+            <a href="https://www.example4.com" target="_blank">What is new?</a>
+        </div>
+    </div>
+
+    <footer>
+        <!-- Add your photo here -->
+        <img src="https://cdn.glitch.global/4b772a27-7a73-41b5-ad11-0d795333176a/IMG_20241123_112910_639.jpg?v=1732364399241" alt="Your Photo">
+        <p><h1>EDITED BY TAME</h1></p>
+    </footer>
+
+</body>
+
+</html>
