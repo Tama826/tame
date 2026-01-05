@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Visual Uplink</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src='https://meet.jit.si/external_api.js'></script>
+    <style>
+        body, html { 
+            margin: 0; padding: 0; height: 100%; 
+            background-color: #000; overflow: hidden; 
+            font-family: monospace;
+        }
+        #meet-container { 
+            width: 100%; height: 100%; 
+            filter: sepia(20%) hue-rotate(180deg) saturate(120%) contrast(110%);
+        }
+        /* Aesthetic Overlay (Scanlines) */
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="meet-container"></div>
+    <div id="overlay"></div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand(); 
+
+        // 1. Get Room ID and User Info
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomName = urlParams.get('room') || 'COSMIC-VOID-' + Math.random().toString(36).substring(7);
+        
+        // Auto-generate name so Jitsi doesn't ask
+        const userDisplayName = tg.initDataUnsafe?.user?.first_name 
+                                ? "OPERATIVE " + tg.initDataUnsafe.user.first_name.toUpperCase() 
+                                : "UNKNOWN OPERATIVE";
+
+        // 2. Configure Instant Entry (No Pre-Join Screen)
+        const domain = 'meet.jit.si';
+        const options = {
+            roomName: roomName,
+            width: '100%',
+            height: '100%',
+            parentNode: document.querySelector('#meet-container'),
+            configOverwrite: { 
+                startWithAudioMuted: false,
+                startWithVideoMuted: false,
+                prejoinPageEnabled: false,       // DISABLES "Hair Check" screen
+                skipMeetingPrejoin: true,        // SKIP pre-join entirely
+                disableDeepLinking: true,        // PREVENT app download prompt
+                requireDisplayName: false        // PREVENT name prompt
+            },
+            interfaceConfigOverwrite: {
+                TOOLBAR_BUTTONS: [
+                    'microphone', 'camera', 'hangup', 'tileview', 'fullscreen', 'chat'
+                ],
+                SHOW_JITSI_WATERMARK: false,
+                SHOW_WATERMARK_FOR_GUESTS: false,
+                MOBILE_APP_PROMO: false,
+                DEFAULT_REMOTE_DISPLAY_NAME: 'Fellow Operative'
+            },
+            userInfo: {
+                displayName: userDisplayName     // INJECTS name automatically
+            }
+        };
+
+        // 3. Launch
+        const api = new JitsiMeetExternalAPI(domain, options);
+
+        // Close Telegram WebApp when call ends
+        api.addEventListener('videoConferenceLeft', () => {
+            tg.close();
+        });
+    </script>
+</body>
+</html>
