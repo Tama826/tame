@@ -3,109 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cosmic Connection - Visual Uplink</title>
+    <title>Cosmic Uplink</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src='https://meet.jit.si/external_api.js'></script>
     <style>
-        body, html { 
-            margin: 0; padding: 0; height: 100%; 
-            background-color: #000; overflow: hidden; 
-            font-family: monospace;
+        body, html { margin: 0; padding: 0; height: 100%; background-color: #000; overflow: hidden; font-family: monospace; }
+        #meet-container { width: 100%; height: 100%; filter: sepia(20%) hue-rotate(180deg) saturate(120%) contrast(110%); }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%; z-index: 10;
         }
-        #meet-container { 
-            width: 100%; height: 100%; 
-            filter: sepia(20%) hue-rotate(180deg) saturate(120%) contrast(110%);
-            position: relative;
+        #status { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: #0f0; padding: 10px; border-radius: 5px; z-index: 100; font-size: 14px; }
+        #test-fallback { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.95); color: white; padding: 30px; border-radius: 15px; text-align: center; display: none; z-index: 1000; }
+    </style>
+</head>
+<body>
+    <div id="status">🚀 Initializing Direct Uplink...</div>
+    <div id="meet-container"></div>
+    <div id="overlay"></div>
+    <div id="test-fallback">
+        <h3>⚠️ Could Not Access Camera</h3>
+        <p>Testing in fallback mode. In a real match, your partner would be here.</p>
+        <div id="fallback-timer">Session Timer: 05:00</div>
+        <button onclick="closeFallback()" style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; margin-top: 15px;">Close Test</button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.enableClosingConfirmation();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomName = urlParams.get('room') || 'COSMIC-VOID-' + Math.random().toString(36).substring(7);
+        let api = null;
+
+        // ==== 1. FIRST, TRY DIRECT JITSI CONNECTION (NO PROMPTS) ====
+        function startDirectConnection() {
+            updateStatus('📡 Bypassing all prompts...');
+
+            const domain = 'meet.jit.si';
+            const options = {
+                roomName: roomName,
+                width: '100%',
+                height: '100%',
+                parentNode: document.querySelector('#meet-container'),
+                configOverwrite: {
+                    // ==== CRITICAL: REMOVES ALL PROMPTS ====
+                    prejoinPageEnabled: false,     // KILLS pre-join screen
+                    skipMeetingPrejoin: true,      // SKIPS directly to call
+                    requireDisplayName: false,     // NO name asked
+                    disableDeepLinking: true,      // NO app prompts
+
+                    // Auto-start media (may still trigger OS permission)
+                    startWithAudioMuted: false,
+                    startWithVideoMuted: false,
+
+                    // Connection reliability
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' },
+                        { urls: 'stun:stun2.l.google.com:19302' }
+                    ],
+                    enableNoisyMicDetection: false,
+                    constraints: {
+                        video: { height: { ideal: 360, max: 720, min: 180 } }
+                    }
+                },
+                interfaceConfigOverwrite: {
+                    TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'tileview', 'fullscreen'],
+                    SHOW_JITSI_WATERMARK: false,
+                    SHOW_WATERMARK_FOR_GUESTS: false,
+                    MOBILE_APP_PROMO: false,
+                    DEFAULT_REMOTE_DISPLAY_NAME: 'Cosmic Partner',
+                    HIDE_INVITE_MORE_HEADER: true
+                },
+                // Auto-generated anonymous name
+                userInfo: {
+                    displayName: 'Anonymous'
+                }
+            };
+
+            try {
+                api = new JitsiMeetExternalAPI(domain, options);
+                setupEventListeners();
+            } catch (error) {
+                console.error('Jitsi init failed:', error);
+                updateStatus('❌ Failed. Entering test mode.');
+                showFallbackTest();
+            }
         }
-        
-        /* COUNTDOWN TIMER OVERLAY */
-        #countdown-timer {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: rgba(0, 0, 0, 0.85);
-            color: #4CAF50;
-            padding: 12px 20px;
-            border-radius: 10px;
-            border: 2px solid #4CAF50;
-            font-size: 24px;
-            font-weight: bold;
-            z-index: 1000;
-            text-align: center;
-            min-width: 120px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            transition: all 0.3s;
+
+        // ==== 2. EVENT HANDLERS ====
+        function setupEventListeners() {
+            if (!api) return;
+
+            api.on('videoConferenceJoined', () => {
+                updateStatus('✅ Directly Joined');
+                startSessionTimer(300); // 5-minute timer
+            });
+
+            api.on('videoConferenceLeft', () => {
+                tg.close();
+            });
+
+            api.on('participantJoined', () => {
+                updateStatus('✨ Partner Connected');
+            });
+
+            api.on('participantLeft', () => {
+                updateStatus('👤 Partner Left');
+            });
+
+            // Monitor connection state
+            api.on('iceConnectionStateChanged', (event) => {
+                console.log('ICE State:', event.state);
+                if (event.state === 'failed') {
+                    updateStatus('⚠️ Connection struggling...');
+                }
+            });
         }
-        #countdown-timer.warning {
-            color: #FF9800;
-            border-color: #FF9800;
-            animation: pulse 1s infinite;
+
+        // ==== 3. SESSION TIMER (WORKS IN BOTH MODES) ====
+        let sessionTimer = null;
+        function startSessionTimer(totalSeconds) {
+            let timeLeft = totalSeconds;
+            const timerElement = document.getElementById('status');
+
+            function update() {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                const timerText = `⏳ ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Update status or fallback display
+                if (document.getElementById('test-fallback').style.display === 'block') {
+                    document.getElementById('fallback-timer').textContent = `Session Timer: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                } else {
+                    updateStatus(timerText);
+                }
+
+                if (timeLeft <= 0) {
+                    endSession();
+                    return;
+                }
+                timeLeft--;
+            }
+
+            update();
+            sessionTimer = setInterval(update, 1000);
         }
-        #countdown-timer.critical {
-            color: #F44336;
-            border-color: #F44336;
-            animation: pulse-fast 0.5s infinite;
+
+        function endSession() {
+            clearInterval(sessionTimer);
+            updateStatus('🌌 Session Complete');
+            if (api) {
+                api.executeCommand('hangup');
+            }
+            setTimeout(() => tg.close(), 2000);
         }
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
+
+        // ==== 4. FALLBACK TEST MODE (IF DIRECT CONNECTION FAILS) ====
+        function showFallbackTest() {
+            document.getElementById('test-fallback').style.display = 'block';
+            startSessionTimer(300); // Start timer in test mode too
         }
-        @keyframes pulse-fast {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+
+        function closeFallback() {
+            document.getElementById('test-fallback').style.display = 'none';
+            tg.close();
         }
-        #timer-label {
-            font-size: 12px;
-            color: #aaa;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+
+        // ==== 5. HELPER ====
+        function updateStatus(text) {
+            document.getElementById('status').textContent = text;
         }
-        
-        /* CONTROL PANEL FOR TESTING */
-        #test-controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
-            padding: 15px;
-            border-radius: 15px;
-            border: 1px solid #444;
-            z-index: 1000;
-            display: none;
-            flex-direction: column;
-            gap: 10px;
-            min-width: 250px;
-            backdrop-filter: blur(5px);
-        }
-        .test-btn {
-            padding: 10px 15px;
-            background: #2196F3;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-family: monospace;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .test-btn:hover {
-            background: #1976D2;
-            transform: translateY(-2px);
-        }
-        .test-btn.danger {
-            background: #F44336;
-        }
-        
-        /* SIMULATION OVERLAY */
-        #simulation-overlay {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
+
+        // ==== 6. START EVERYTHING ====
+        // Try direct connection immediately on load
+        startDirectConnection();
+
+        // If after 5 seconds we're not connected, show test fallback
+        setTimeout(() => {
+            if (!api || document.getElementById('status').textContent.includes('Initializing')) {
+                showFallbackTest();
+            }
+        }, 5000);
+
+        // Prevent accidental exit
+        window.addEventListener('beforeunload', (e) => {
+            e.preventDefault();
+            e.returnValue = '';
+        });
+    </script>
+</body>
+</html>            background: rgba(0, 0, 0, 0.9);
             color: white;
             padding: 30px;
             border-radius: 15px;
