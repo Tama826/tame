@@ -7,170 +7,140 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src='https://meet.jit.si/external_api.js'></script>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; background-color: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+        body, html { margin: 0; padding: 0; height: 100%; background-color: #000; overflow: hidden; font-family: 'Courier New', monospace; user-select: none; -webkit-user-select: none; }
         
-        /* The container for the video */
-        #meet-container { width: 100%; height: 100%; transition: filter 0.5s; }
-        
-        /* The Cosmic Filter Class */
-        .cosmic-filter { filter: sepia(20%) hue-rotate(180deg) saturate(120%) contrast(110%); }
-
-        /* CRT Overlay lines */
-        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            background-size: 100% 2px, 3px 100%; z-index: 10; opacity: 0.7;
+        /* THE CONTAINER - Hidden (opacity 0) until ready */
+        #meet-container { 
+            width: 100%; height: 100%; 
+            opacity: 0; 
+            transition: opacity 2s ease-in; /* Slow fade in for drama */
+            filter: sepia(30%) hue-rotate(190deg) contrast(120%) saturate(110%);
         }
 
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
-        
-        #status { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: #0f0; padding: 8px 12px; border: 1px solid #0f0; border-radius: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        /* CRT SCANLINE OVERLAY - Always on top */
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 3px, 3px 100%; z-index: 999; opacity: 0.6; mix-blend-mode: overlay;
+        }
 
-        /* Controls that need pointer events */
-        .controls { pointer-events: auto; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
-        .btn { background: rgba(0, 20, 0, 0.8); border: 1px solid #0f0; color: #0f0; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-family: monospace; text-transform: uppercase; font-size: 12px; }
-        .btn:active { background: #0f0; color: #000; }
+        /* THE BOOT SCREEN (Covers the ugly loading) */
+        #boot-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 500;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: #0f0; padding: 20px; text-align: center;
+            cursor: pointer; /* Hints that it's clickable */
+        }
 
-        /* Start Screen */
-        #start-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #0f0; }
-        #start-btn { padding: 15px 30px; font-size: 18px; background: #000; border: 2px solid #0f0; color: #0f0; cursor: pointer; margin-top: 20px; box-shadow: 0 0 10px #0f0; animation: pulse 2s infinite; }
+        /* Pulsing Text */
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
         
-        @keyframes pulse { 0% { box-shadow: 0 0 5px #0f0; } 50% { box-shadow: 0 0 20px #0f0; } 100% { box-shadow: 0 0 5px #0f0; } }
+        .glow-text { text-shadow: 0 0 10px #0f0, 0 0 20px #0f0; font-size: 14px; letter-spacing: 2px; line-height: 1.5; }
+        
+        /* The "Tap" hint is subtle */
+        #interaction-trigger { 
+            margin-top: 30px; 
+            border: 1px solid #0f0; 
+            padding: 10px 30px; 
+            text-transform: uppercase; 
+            font-size: 12px;
+            background: rgba(0, 255, 0, 0.1);
+        }
+
     </style>
 </head>
 <body>
 
-    <div id="start-screen">
-        <h1 style="text-shadow: 0 0 10px #0f0;">COSMIC UPLINK</h1>
-        <p>SECURE CHANNEL DETECTED</p>
-        <button id="start-btn" onclick="initCosmos()">ESTABLISH LINK</button>
+    <div id="boot-screen" onclick="initializeUplink()">
+        <div class="glow-text">
+            > SYSTEM BOOT... OK<br>
+            > ENCRYPTING FEED... OK<br>
+            > BYPASSING FIREWALL... OK<br>
+            <br>
+            <span class="blink">AWAITING BIOMETRIC INPUT</span>
+        </div>
+        <div id="interaction-trigger">TAP SCREEN TO ENGAGE</div>
     </div>
 
-    <div id="status">WAITING FOR UPLINK...</div>
-    <div id="meet-container" class="cosmic-filter"></div>
-    <div id="overlay"></div>
+    <div id="meet-container"></div>
     
-    <div id="ui-layer">
-        <div class="controls">
-            <button class="btn" onclick="toggleFilters()">FX Toggle</button>
-            <button class="btn" onclick="endSession()">Abort</button>
-        </div>
-    </div>
+    <div id="overlay"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
-        tg.enableClosingConfirmation();
 
-        // Get Room ID from URL or generate random
         const urlParams = new URLSearchParams(window.location.search);
-        // Using a more unique prefix to avoid collision in public Jitsi
-        const roomName = urlParams.get('room') || 'COSMIC-' + (Math.random() + 1).toString(36).substring(7);
-        
+        const roomName = urlParams.get('room') || 'COSMIC-UPLINK-' + Math.random().toString(36).substring(7);
         let api = null;
-        let sessionTimer = null;
 
-        function updateStatus(text) {
-            document.getElementById('status').innerText = text;
+        // ==== THE MAGIC FUNCTION ====
+        function initializeUplink() {
+            // 1. Change text to show we are working
+            const bootScreen = document.getElementById('boot-screen');
+            const trigger = document.getElementById('interaction-trigger');
+            
+            trigger.style.display = 'none'; // Hide the button immediately
+            document.querySelector('.glow-text').innerHTML = "> ESTABLISHING VIDEO LINK...<br>> PLEASE STAND BY...";
+
+            // 2. Start Jitsi immediately
+            startJitsi(bootScreen);
         }
 
-        function toggleFilters() {
-            const container = document.getElementById('meet-container');
-            container.classList.toggle('cosmic-filter');
-        }
-
-        // ==== 1. INITIALIZE (Triggered by User Click) ====
-        function initCosmos() {
-            // Hide start screen
-            document.getElementById('start-screen').style.display = 'none';
-            updateStatus('📡 INITIALIZING SYSTEMS...');
-
+        function startJitsi(bootScreenElement) {
             const domain = 'meet.jit.si';
             const options = {
                 roomName: roomName,
                 width: '100%',
                 height: '100%',
                 parentNode: document.querySelector('#meet-container'),
-                lang: 'en',
                 configOverwrite: {
-                    startWithAudioMuted: false,
-                    startWithVideoMuted: false,
-                    prejoinPageEnabled: false,
-                    disableDeepLinking: true, 
-                    // New location for toolbar config
-                    toolbarButtons: [
-                        'camera',
-                        'microphone',
-                        'tileview',
-                        'fullscreen'
-                    ],
-                    // Hide other UI elements to look cleaner
-                    notifications: [],
+                    prejoinPageEnabled: false,      // KILL THE LOBBY
+                    startWithAudioMuted: false,     // AUDIO ON
+                    startWithVideoMuted: false,     // VIDEO ON
+                    disableDeepLinking: true,       // NO APP PROMPTS
+                    requireDisplayName: false,
+                    // REMOVE ALL BUTTONS for pure view
+                    toolbarButtons: ['hangup', 'microphone', 'camera', 'tileview'], 
                 },
                 interfaceConfigOverwrite: {
-                    // Legacy support, but mostly ignored now
+                    // Hide everything possible
                     SHOW_JITSI_WATERMARK: false,
                     SHOW_WATERMARK_FOR_GUESTS: false,
-                    DEFAULT_REMOTE_DISPLAY_NAME: 'COSMIC ENTITY',
-                    TOOLBAR_ALWAYS_VISIBLE: false
+                    TOOLBAR_ALWAYS_VISIBLE: false,
+                    filmStripOnly: false,
+                    DEFAULT_REMOTE_DISPLAY_NAME: 'Target',
                 },
-                userInfo: {
-                    displayName: 'Cosmic Traveler'
-                }
+                userInfo: { displayName: 'Ghost' }
             };
 
-            try {
-                api = new JitsiMeetExternalAPI(domain, options);
-                setupEventListeners();
-            } catch (error) {
-                console.error('Jitsi Error:', error);
-                updateStatus('❌ SYSTEM FAILURE');
-            }
-        }
+            api = new JitsiMeetExternalAPI(domain, options);
 
-        // ==== 2. EVENT LISTENERS ====
-        function setupEventListeners() {
-            if (!api) return;
-
+            // 3. LISTEN FOR CONNECTION
             api.addEventListeners({
+                // ONLY remove the boot screen when the video is ACTUALLY ready
                 videoConferenceJoined: function() {
-                    updateStatus('✅ LINK ESTABLISHED');
-                    startTimer(300); // 5 mins
+                    console.log("Joined! Fading in...");
+                    
+                    // Fade out the boot screen
+                    bootScreenElement.style.transition = "opacity 1s";
+                    bootScreenElement.style.opacity = "0";
+                    
+                    // Fade in the video
+                    document.getElementById('meet-container').style.opacity = "1";
+
+                    // Remove boot screen from DOM after fade
+                    setTimeout(() => {
+                        bootScreenElement.style.display = 'none';
+                    }, 1000);
                 },
-                participantJoined: function() {
-                    updateStatus('✨ LIFEFORM DETECTED');
-                },
-                participantLeft: function() {
-                    updateStatus('💨 SIGNAL LOST');
-                },
+                
+                // If call ends, close app
                 videoConferenceLeft: function() {
                     tg.close();
                 }
             });
-        }
-
-        // ==== 3. UTILITIES ====
-        function startTimer(duration) {
-            let timer = duration, minutes, seconds;
-            sessionTimer = setInterval(function () {
-                minutes = parseInt(timer / 60, 10);
-                seconds = parseInt(timer % 60, 10);
-
-                minutes = minutes < 10 ? "0" + minutes : minutes;
-                seconds = seconds < 10 ? "0" + seconds : seconds;
-
-                updateStatus('⏱ ' + minutes + ":" + seconds);
-
-                if (--timer < 0) {
-                    endSession();
-                }
-            }, 1000);
-        }
-
-        function endSession() {
-            clearInterval(sessionTimer);
-            updateStatus('🛑 TERMINATING...');
-            if (api) api.dispose();
-            setTimeout(() => tg.close(), 1000);
         }
     </script>
 </body>
