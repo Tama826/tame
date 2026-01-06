@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Cosmic Uplink v3.1</title>
+    <title>Cosmic Uplink v4.0 - STABLE</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src='https://meet.jit.si/external_api.js'></script>
     <style>
@@ -27,7 +27,7 @@
         }
         
         /* MAIN CONTAINERS */
-        #meet-container, #boot-screen, #permission-screen, #loading-screen {
+        #meet-container, #boot-screen, #permission-screen, #loading-screen, #error-screen {
             position: absolute;
             top: 0;
             left: 0;
@@ -35,7 +35,24 @@
             height: 100%;
         }
         
-        /* PERMISSION REQUEST SCREEN */
+        /* ERROR SCREEN */
+        #error-screen {
+            background: #111;
+            z-index: 1200;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: #f00;
+            text-align: center;
+        }
+        
+        #error-screen.active {
+            display: flex;
+        }
+        
+        /* PERMISSION SCREEN */
         #permission-screen {
             background: #000;
             z-index: 1100;
@@ -53,7 +70,7 @@
         }
         
         .permission-icon {
-            font-size: 60px;
+            font-size: 50px;
             margin-bottom: 20px;
             animation: pulse 2s infinite;
         }
@@ -90,7 +107,7 @@
         /* MEET CONTAINER */
         #meet-container { 
             opacity: 0;
-            transition: opacity 1s ease;
+            transition: opacity 0.5s ease;
             filter: sepia(30%) hue-rotate(190deg) contrast(120%) saturate(110%);
         }
         
@@ -123,7 +140,7 @@
             width: 100%;
             background: rgba(0, 20, 0, 0.8);
             color: #0f0;
-            padding: 10px 15px;
+            padding: 12px 15px;
             font-size: 12px;
             z-index: 1001;
             display: flex;
@@ -133,12 +150,34 @@
             border-bottom: 1px solid rgba(0, 255, 0, 0.2);
         }
         
+        /* MANUAL OVERRIDE BUTTON */
+        #manual-override {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 50, 50, 0.2);
+            border: 1px solid #f00;
+            color: #f00;
+            padding: 10px 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: none;
+            z-index: 1002;
+            text-transform: uppercase;
+        }
+        
+        #manual-override.active {
+            display: block;
+        }
+        
         /* TYPOGRAPHY */
         .glow-text {
-            text-shadow: 0 0 10px #0f0, 0 0 20px #0f0;
+            text-shadow: 0 0 10px currentColor;
             font-size: 14px;
             line-height: 1.6;
             margin-bottom: 20px;
+            max-width: 90%;
         }
         
         .blink {
@@ -160,7 +199,7 @@
             background: rgba(0, 255, 0, 0.1);
             border: 1px solid #0f0;
             color: #0f0;
-            padding: 15px 30px;
+            padding: 14px 28px;
             font-family: 'Courier New', monospace;
             font-size: 14px;
             text-transform: uppercase;
@@ -169,6 +208,8 @@
             transition: all 0.3s;
             min-width: 200px;
             text-align: center;
+            border-radius: 2px;
+            letter-spacing: 1px;
         }
         
         .cyber-btn:hover {
@@ -204,7 +245,7 @@
             100% { transform: rotate(360deg); }
         }
         
-        /* DEBUG INFO (Hidden by default) */
+        /* DEBUG INFO */
         #debug-info {
             position: absolute;
             bottom: 10px;
@@ -214,10 +255,43 @@
             z-index: 1001;
         }
         
+        /* CONNECTION STEPS */
+        .connection-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+            text-align: left;
+            font-size: 12px;
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0.5;
+        }
+        
+        .step.active {
+            opacity: 1;
+            color: #0f0;
+        }
+        
+        .step.completed::before {
+            content: "✓";
+            color: #0f0;
+        }
+        
+        .step::before {
+            content: "○";
+            width: 20px;
+            text-align: center;
+        }
+        
         /* SAFE AREA ADJUSTMENTS */
         @supports (padding: max(0px)) {
             #status-bar {
-                padding-top: max(10px, env(safe-area-inset-top));
+                padding-top: max(12px, env(safe-area-inset-top));
                 padding-left: max(15px, env(safe-area-inset-left));
                 padding-right: max(15px, env(safe-area-inset-right));
             }
@@ -227,27 +301,44 @@
 <body>
     <!-- Status Bar -->
     <div id="status-bar">
-        <span id="status-text">> COSMIC UPLINK v3.1</span>
+        <span id="status-text">> COSMIC UPLINK v4.0</span>
         <span id="room-display"></span>
+    </div>
+    
+    <!-- Error Screen -->
+    <div id="error-screen">
+        <div style="font-size: 40px; margin-bottom: 20px;">⚠️</div>
+        <div class="glow-text" style="color: #f00;">
+            > CONNECTION FAILURE<br>
+            > UNABLE TO ESTABLISH LINK<br>
+            <br>
+            <span id="error-details">CHECKING FAILURE MODE...</span>
+        </div>
+        <div class="btn-group">
+            <button class="cyber-btn" style="border-color: #f00; color: #f00;" onclick="retryConnection()">RETRY CONNECTION</button>
+            <button class="cyber-btn" onclick="hardReset()">FACTORY RESET</button>
+        </div>
     </div>
     
     <!-- Permission Screen -->
     <div id="permission-screen">
-        <div class="permission-icon">🎤📹</div>
+        <div class="permission-icon">🔒</div>
         <div class="glow-text">
-            > PERMISSION REQUIRED<br>
-            > CAMERA & MICROPHONE ACCESS<br>
-            > REQUIRED FOR COSMIC UPLINK<br>
+            > PERMISSION REQUEST<br>
+            > ACCESS: CAMERA & MICROPHONE<br>
+            > REQUIRED FOR COSMIC TRANSMISSION<br>
             <br>
             > TAP "ALLOW" WHEN PROMPTED<br>
-            > DO NOT BLOCK PERMISSIONS
+            > DO NOT SELECT "BLOCK"
+        </div>
+        <div class="connection-steps">
+            <div class="step" id="step1">1. Requesting camera access</div>
+            <div class="step" id="step2">2. Requesting microphone access</div>
+            <div class="step" id="step3">3. Initializing connection</div>
         </div>
         <div class="btn-group">
             <button class="cyber-btn" onclick="requestPermissions()">GRANT PERMISSIONS</button>
-            <button class="cyber-btn" onclick="skipToCall()">CONTINUE WITHOUT MEDIA</button>
-        </div>
-        <div style="margin-top: 20px; font-size: 12px; opacity: 0.7;">
-            Note: Some browsers require manual permission grant
+            <button class="cyber-btn" onclick="skipPermissions()">JOIN WITHOUT MEDIA</button>
         </div>
     </div>
     
@@ -255,54 +346,68 @@
     <div id="loading-screen">
         <div class="loader"></div>
         <div class="glow-text" id="loading-text">
-            > INITIALIZING COSMIC LINK...
+            > INITIALIZING QUANTUM LINK...
+        </div>
+        <div class="connection-steps">
+            <div class="step" id="step4">4. Connecting to server</div>
+            <div class="step" id="step5">5. Establishing WebRTC</div>
+            <div class="step" id="step6">6. Joining conference</div>
         </div>
     </div>
     
     <!-- Boot Screen -->
     <div id="boot-screen">
         <div class="glow-text">
-            > COSMIC UPLINK v3.1<br>
-            > MOBILE OPTIMIZED<br>
-            > SYSTEM CHECK... OK<br>
-            > ENCRYPTION... READY<br>
-            > FIREWALL BYPASS... ACTIVE<br>
+            > COSMIC UPLINK v4.0<br>
+            > ANDROID OPTIMIZED<br>
+            > SYSTEM INTEGRITY... VERIFIED<br>
+            > ENCRYPTION MODULE... ACTIVE<br>
+            > FIREWALL BYPASS... ONLINE<br>
             <br>
-            <span class="blink">> AWAITING INITIATION</span>
+            <span class="blink">> AWAITING INITIATION SEQUENCE</span>
         </div>
         <div class="btn-group">
             <button class="cyber-btn" onclick="startConnection()">INITIATE UPLINK</button>
         </div>
         <div style="margin-top: 30px; font-size: 11px; opacity: 0.5;">
-            Auto-start in <span id="countdown">5</span> seconds
+            Auto-initiation in <span id="countdown">8</span> seconds
         </div>
     </div>
     
     <!-- Main Container -->
     <div id="meet-container"></div>
     <div id="overlay"></div>
+    
+    <!-- Manual Override -->
+    <button id="manual-override" onclick="forceJoinMeeting()">FORCE JOIN MEETING</button>
+    
+    <!-- Debug Info -->
     <div id="debug-info"></div>
 
     <script>
         // ======================
-        // INITIALIZATION
+        // GLOBAL STATE
         // ======================
         const tg = window.Telegram.WebApp;
         tg.expand();
         tg.BackButton.hide();
         
-        // Detect environment
+        // Environment detection
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        const isAndroid = /Android/i.test(navigator.userAgent);
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        const isChrome = /Chrome/i.test(navigator.userAgent);
         
-        // State variables
+        // Application state
         let api = null;
         let connectionAttempts = 0;
+        const MAX_ATTEMPTS = 3;
         let hasPermissions = false;
         let isConnecting = false;
         let autoStartTimer = null;
-        let countdown = 5;
+        let countdown = 8;
+        let forceJoinTimer = null;
+        let connectionTimeout = null;
         
         // User info
         const user = tg.initDataUnsafe?.user;
@@ -316,11 +421,16 @@
         
         // Debug info
         document.getElementById('debug-info').textContent = 
-            `Mobile: ${isMobile ? 'Yes' : 'No'} | iOS: ${isIOS ? 'Yes' : 'No'} | Safari: ${isSafari ? 'Yes' : 'No'}`;
+            `Android: ${isAndroid ? 'Yes' : 'No'} | Chrome: ${isChrome ? 'Yes' : 'No'}`;
         
         // ======================
-        // COUNTDOWN TIMER
+        // INITIALIZATION
         // ======================
+        function init() {
+            startCountdown();
+            updateStep(0); // Reset all steps
+        }
+        
         function startCountdown() {
             const countdownEl = document.getElementById('countdown');
             autoStartTimer = setInterval(() => {
@@ -333,39 +443,38 @@
             }, 1000);
         }
         
-        // Start countdown on load
-        window.addEventListener('load', () => {
-            startCountdown();
-        });
+        window.addEventListener('load', init);
         
         // ======================
-        // START CONNECTION FLOW
+        // CONNECTION FLOW
         // ======================
         function startConnection() {
             clearInterval(autoStartTimer);
-            
             if (isConnecting) return;
-            isConnecting = true;
             
-            document.getElementById('status-text').textContent = "> INITIATING CONNECTION...";
+            isConnecting = true;
+            connectionAttempts = 0;
+            updateStatus("> INITIATING CONNECTION...");
             
             // Show permission screen first
             showPermissionScreen();
         }
         
-        // ======================
-        // PERMISSION HANDLING
-        // ======================
         function showPermissionScreen() {
             document.getElementById('boot-screen').style.display = 'none';
             document.getElementById('permission-screen').classList.add('active');
+            updateStep(1);
         }
         
+        // ======================
+        // PERMISSION HANDLING
+        // ======================
         async function requestPermissions() {
-            document.getElementById('status-text').textContent = "> REQUESTING PERMISSIONS...";
+            updateStep(1, 'active');
             
             try {
-                // Request camera permission first (most restrictive)
+                // Step 1: Camera
+                updateStatus("> REQUESTING CAMERA ACCESS...");
                 const cameraStream = await navigator.mediaDevices.getUserMedia({ 
                     video: {
                         width: { ideal: 640 },
@@ -374,11 +483,12 @@
                     },
                     audio: false 
                 });
-                
-                // Stop camera stream immediately (we just wanted permission)
                 cameraStream.getTracks().forEach(track => track.stop());
+                updateStep(1, 'completed');
                 
-                // Request microphone
+                // Step 2: Microphone
+                updateStep(2, 'active');
+                updateStatus("> REQUESTING MICROPHONE ACCESS...");
                 const micStream = await navigator.mediaDevices.getUserMedia({ 
                     audio: {
                         echoCancellation: true,
@@ -387,14 +497,13 @@
                     },
                     video: false 
                 });
-                
-                // Stop mic stream
                 micStream.getTracks().forEach(track => track.stop());
+                updateStep(2, 'completed');
                 
                 hasPermissions = true;
-                document.getElementById('status-text').textContent = "> PERMISSIONS GRANTED";
+                updateStatus("> PERMISSIONS GRANTED");
                 
-                // Proceed to load Jitsi
+                // Proceed to loading
                 setTimeout(() => {
                     document.getElementById('permission-screen').classList.remove('active');
                     loadJitsiMeeting();
@@ -402,128 +511,140 @@
                 
             } catch (error) {
                 console.error('Permission error:', error);
+                updateStep(error.name === 'NotAllowedError' ? 2 : 1, 'error');
                 
-                // Handle specific errors
                 if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-                    document.getElementById('status-text').textContent = "> PERMISSION DENIED";
-                    alert("Please allow camera and microphone access in your browser settings, then refresh the page.");
-                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
-                    document.getElementById('status-text').textContent = "> NO DEVICES FOUND";
-                    alert("No camera or microphone found. Please connect a device.");
+                    updateStatus("> PERMISSION DENIED");
+                    showError("Camera/microphone access was denied. Please check browser permissions.");
                 } else {
-                    document.getElementById('status-text').textContent = "> PERMISSION ERROR";
+                    updateStatus("> DEVICE ERROR");
+                    skipPermissions();
                 }
-                
-                // Still try to load without permissions
-                setTimeout(() => {
-                    document.getElementById('permission-screen').classList.remove('active');
-                    loadJitsiMeeting();
-                }, 1000);
             }
         }
         
-        function skipToCall() {
-            document.getElementById('status-text').textContent = "> SKIPPING PERMISSIONS...";
-            document.getElementById('permission-screen').classList.remove('active');
+        function skipPermissions() {
+            updateStatus("> SKIPPING MEDIA PERMISSIONS...");
             hasPermissions = false;
-            setTimeout(loadJitsiMeeting, 500);
+            document.getElementById('permission-screen').classList.remove('active');
+            loadJitsiMeeting();
         }
         
         // ======================
-        // JITSI LOADING
+        // JITSI CONFIGURATION (ANDROID FIXED)
         // ======================
         function loadJitsiMeeting() {
             document.getElementById('loading-screen').classList.add('active');
-            document.getElementById('loading-text').textContent = "> LOADING COSMIC INTERFACE...";
+            updateStep(4, 'active');
+            updateStatus("> LOADING INTERFACE...");
             
-            // Wait a moment for DOM updates
-            setTimeout(() => {
-                initializeJitsi();
-            }, 1000);
+            // Small delay for UI transition
+            setTimeout(initializeJitsi, 300);
         }
         
         function initializeJitsi() {
-            document.getElementById('loading-text').textContent = "> CONNECTING TO SERVER...";
+            updateStep(5, 'active');
+            updateStatus("> CONFIGURING WEBRTC...");
             
-            // Jitsi configuration with mobile optimizations
             const domain = 'meet.jit.si';
+            
+            // CRITICAL: Android-specific configuration to prevent "searching" issue
             const options = {
                 roomName: roomName,
                 width: '100%',
                 height: '100%',
                 parentNode: document.querySelector('#meet-container'),
                 configOverwrite: {
-                    // Critical: Disable prejoin page to avoid permission loops
+                    // DISABLE PREJOIN PAGE COMPLETELY (Main fix for Android)
                     prejoinPageEnabled: false,
-                    disableDeepLinking: true,
-                    requireDisplayName: false,
-                    enableWelcomePage: false,
-                    enableClosePage: false,
+                    prejoinConfig: {
+                        enabled: false,
+                        hideDisplayName: true
+                    },
                     
-                    // Start muted to avoid permission issues
+                    // Start muted to avoid autoplay issues
                     startWithAudioMuted: !hasPermissions,
                     startWithVideoMuted: !hasPermissions,
                     
-                    // Optimize for mobile
-                    resolution: isMobile ? 360 : 720,
+                    // Disable welcome/close pages
+                    enableWelcomePage: false,
+                    enableClosePage: false,
+                    requireDisplayName: false,
+                    disableDeepLinking: true,
+                    
+                    // Android WebRTC optimizations
+                    disableSimulcast: isAndroid, // Disable for Android stability
+                    p2p: { enabled: !isAndroid }, // Disable P2P on Android
+                    enableLayerSuspension: true,
+                    
+                    // Bandwidth optimizations
+                    videoQuality: {
+                        preferredCodec: 'VP8',
+                        maxBitrateVideo: isAndroid ? 500000 : 1500000,
+                    },
+                    
+                    // Constraints for Android
                     constraints: {
                         video: {
                             height: {
-                                ideal: isMobile ? 360 : 720,
-                                max: isMobile ? 720 : 1080,
+                                ideal: isAndroid ? 360 : 720,
+                                max: isAndroid ? 720 : 1080,
                                 min: 180
+                            },
+                            frameRate: {
+                                ideal: isAndroid ? 20 : 30,
+                                max: 30
                             }
                         }
                     },
                     
-                    // Disable features that cause permission prompts
-                    disableSimulcast: isMobile,
-                    enableLayerSuspension: true,
-                    p2p: { enabled: false }, // Disable P2P for better reliability
+                    // Toolbar (simplified for Android)
+                    toolbarButtons: isAndroid ? 
+                        ['microphone', 'camera', 'hangup', 'tileview', 'fullscreen'] :
+                        ['microphone', 'camera', 'desktop', 'hangup', 'tileview', 'fullscreen', 'settings'],
                     
-                    // Toolbar settings
-                    toolbarButtons: [
-                        'microphone', 'camera', 'desktop', 'fullscreen',
-                        'hangup', 'settings', 'videoquality', 'filmstrip'
-                    ],
-                    
-                    // Disable chat completely
+                    // Disable features that cause issues
                     disableChat: true,
                     disableInviteFunctions: true,
+                    disableRemoteMute: true,
                     
                     // Set user info
                     defaultLocalDisplayName: firstName
                 },
                 interfaceConfigOverwrite: {
-                    // Hide unnecessary elements
+                    // Hide prejoin UI elements
+                    SHOW_PREJOIN_PAGE: false,
+                    SHOW_PREJOIN_SCREEN: false,
+                    SHOW_CHROME_EXTENSION_BANNER: false,
+                    
+                    // Hide watermarks
                     SHOW_JITSI_WATERMARK: false,
                     SHOW_WATERMARK_FOR_GUESTS: false,
                     SHOW_POWERED_BY: false,
+                    SHOW_BRAND_WATERMARK: false,
                     
                     // Mobile optimizations
                     MOBILE_APP_PROMO: false,
                     VERTICAL_FILMSTRIP: isMobile,
-                    TILE_VIEW_MAX_COLUMNS: isMobile ? 2 : 4,
+                    TILE_VIEW_MAX_COLUMNS: isAndroid ? 2 : 4,
+                    
+                    // Toolbar behavior
+                    TOOLBAR_ALWAYS_VISIBLE: false,
+                    INITIAL_TOOLBAR_TIMEOUT: 2000,
+                    TOOLBAR_TIMEOUT: 3000,
                     
                     // Simplify interface
-                    TOOLBAR_ALWAYS_VISIBLE: false,
-                    SETTINGS_SECTIONS: ['devices', 'language'],
-                    
-                    // Disable features
+                    SETTINGS_SECTIONS: ['devices'],
                     DISABLE_VIDEO_BACKGROUND: true,
                     DISABLE_FOCUS_INDICATOR: isMobile,
                     
-                    // Avatar settings
+                    // Display names
                     DEFAULT_REMOTE_DISPLAY_NAME: '∙∙∙',
-                    DEFAULT_LOCAL_DISPLAY_NAME: firstName
+                    DEFAULT_LOCAL_DISPLAY_NAME: firstName.substring(0, 12)
                 },
                 userInfo: {
                     displayName: firstName,
                     email: `${username}@cosmic.uplink`
-                },
-                onload: function() {
-                    console.log('Jitsi Meet API loaded');
-                    document.getElementById('loading-text').textContent = "> API LOADED, STARTING...";
                 }
             };
             
@@ -531,21 +652,17 @@
             try {
                 api = new JitsiMeetExternalAPI(domain, options);
                 setupEventListeners();
+                
+                // Set connection timeout (15 seconds)
+                connectionTimeout = setTimeout(() => {
+                    if (!document.getElementById('meet-container').classList.contains('active')) {
+                        showManualOverride();
+                    }
+                }, 15000);
+                
             } catch (error) {
                 console.error('Jitsi initialization error:', error);
-                document.getElementById('loading-text').textContent = "> INITIALIZATION FAILED";
-                
-                // Try again with simpler config
-                setTimeout(() => {
-                    if (connectionAttempts < 2) {
-                        connectionAttempts++;
-                        document.getElementById('loading-text').textContent = `> RETRYING (${connectionAttempts}/2)...`;
-                        initializeJitsi();
-                    } else {
-                        document.getElementById('loading-text').textContent = "> FAILED TO LOAD";
-                        alert("Could not load video call. Please refresh the page.");
-                    }
-                }, 2000);
+                handleConnectionError('Initialization failed: ' + error.message);
             }
         }
         
@@ -555,10 +672,12 @@
         function setupEventListeners() {
             if (!api) return;
             
-            // Main event: Conference joined
+            // SUCCESS: Conference joined
             api.on('videoConferenceJoined', () => {
-                console.log('Conference joined');
-                document.getElementById('status-text').textContent = "> CONNECTION SECURE";
+                console.log('✓ Conference joined successfully');
+                clearTimeout(connectionTimeout);
+                updateStep(6, 'completed');
+                updateStatus("> CONNECTION SECURE | ENCRYPTED");
                 
                 // Hide loading screen
                 document.getElementById('loading-screen').classList.remove('active');
@@ -566,121 +685,199 @@
                 // Show meeting container
                 document.getElementById('meet-container').classList.add('active');
                 
-                // Update status
-                setTimeout(() => {
-                    document.getElementById('status-text').textContent = "> COSMIC UPLINK ACTIVE";
-                }, 1000);
+                // Hide manual override
+                document.getElementById('manual-override').classList.remove('active');
                 
-                // Force show video if permissions were granted
+                // Auto-enable media if permissions were granted
                 if (hasPermissions) {
                     setTimeout(() => {
                         try {
+                            // Toggle video to ensure it's on
                             api.executeCommand('toggleVideo');
-                            setTimeout(() => api.executeCommand('toggleVideo'), 100);
+                            // Toggle audio
+                            api.executeCommand('toggleAudio');
                         } catch (e) {
                             // Ignore errors
                         }
-                    }, 500);
+                    }, 1000);
                 }
             });
             
             // Connection established
             api.on('connectionEstablished', () => {
-                console.log('Connection established');
-                document.getElementById('loading-text').textContent = "> AUTHENTICATING...";
+                console.log('✓ WebRTC connection established');
+                updateStep(5, 'completed');
+                updateStep(6, 'active');
+                updateStatus("> AUTHENTICATING...");
+            });
+            
+            // Connection failed
+            api.on('connectionFailed', (error) => {
+                console.error('✗ Connection failed:', error);
+                updateStatus("> CONNECTION FAILED");
+                handleConnectionError('WebRTC connection failed');
+            });
+            
+            // Conference failed to join
+            api.on('conferenceFailed', (error) => {
+                console.error('✗ Conference failed:', error);
+                updateStatus("> CONFERENCE FAILED");
+                handleConnectionError('Failed to join conference');
             });
             
             // Participant joined
             api.on('participantJoined', () => {
-                document.getElementById('status-text').textContent = "> USER DETECTED";
+                updateStatus("> USER DETECTED IN CHANNEL");
             });
             
             // Participant left
             api.on('participantLeft', () => {
-                document.getElementById('status-text').textContent = "> USER DISCONNECTED";
+                updateStatus("> USER DISCONNECTED");
             });
             
             // Conference left
             api.on('videoConferenceLeft', () => {
-                document.getElementById('status-text').textContent = "> CONNECTION TERMINATED";
+                updateStatus("> CONNECTION TERMINATED");
                 setTimeout(() => tg.close(), 2000);
+            });
+            
+            // Error occurred
+            api.on('error', (error) => {
+                console.error('Jitsi error:', error);
+                updateStatus("> SYSTEM ERROR DETECTED");
             });
             
             // Ready to close
             api.on('readyToClose', () => {
                 tg.close();
             });
+        }
+        
+        // ======================
+        // MANUAL OVERRIDE SYSTEM
+        // ======================
+        function showManualOverride() {
+            document.getElementById('manual-override').classList.add('active');
+            updateStatus("> CONNECTION TIMEOUT | MANUAL OVERRIDE AVAILABLE");
+        }
+        
+        function forceJoinMeeting() {
+            updateStatus("> MANUAL JOIN INITIATED...");
             
-            // Error handling
-            api.on('error', (error) => {
-                console.error('Jitsi error:', error);
-                document.getElementById('loading-text').textContent = "> ERROR DETECTED";
+            if (api) {
+                try {
+                    // Try to force join the conference
+                    api.executeCommand('join');
+                    
+                    // Also try to set subject (can help)
+                    api.executeCommand('subject', 'Cosmic Uplink - Manual Join');
+                    
+                    updateStatus("> MANUAL JOIN COMMAND SENT");
+                    
+                    // Hide button after click
+                    setTimeout(() => {
+                        document.getElementById('manual-override').classList.remove('active');
+                    }, 3000);
+                    
+                } catch (error) {
+                    console.error('Manual join failed:', error);
+                    updateStatus("> MANUAL JOIN FAILED");
+                }
+            }
+        }
+        
+        // ======================
+        // ERROR HANDLING
+        // ======================
+        function handleConnectionError(message) {
+            connectionAttempts++;
+            
+            if (connectionAttempts >= MAX_ATTEMPTS) {
+                showError(`Failed after ${MAX_ATTEMPTS} attempts: ${message}`);
+            } else {
+                updateStatus(`> RETRYING (${connectionAttempts}/${MAX_ATTEMPTS})...`);
                 
-                // Try to recover
+                // Clean up previous attempt
+                if (api) {
+                    api.dispose();
+                    api = null;
+                }
+                
+                // Retry after delay
                 setTimeout(() => {
-                    if (api) {
-                        api.dispose();
-                        api = null;
-                    }
+                    document.getElementById('loading-screen').classList.remove('active');
                     loadJitsiMeeting();
-                }, 3000);
+                }, 2000);
+            }
+        }
+        
+        function showError(message) {
+            document.getElementById('error-details').textContent = message;
+            document.getElementById('loading-screen').classList.remove('active');
+            document.getElementById('error-screen').classList.add('active');
+        }
+        
+        function retryConnection() {
+            document.getElementById('error-screen').classList.remove('active');
+            isConnecting = false;
+            startConnection();
+        }
+        
+        function hardReset() {
+            location.reload();
+        }
+        
+        // ======================
+        // UTILITY FUNCTIONS
+        // ======================
+        function updateStatus(text) {
+            document.getElementById('status-text').textContent = text;
+            console.log(text);
+        }
+        
+        function updateStep(stepNumber, state = '') {
+            const steps = document.querySelectorAll('.step');
+            
+            // Reset all steps
+            steps.forEach(step => {
+                step.className = 'step';
             });
             
-            // Check if conference doesn't start within 10 seconds
-            setTimeout(() => {
-                const meetContainer = document.getElementById('meet-container');
-                if (!meetContainer.classList.contains('active')) {
-                    console.log('Forcing conference start...');
-                    document.getElementById('loading-screen').classList.remove('active');
-                    meetContainer.classList.add('active');
-                    document.getElementById('status-text').textContent = "> MANUAL OVERRIDE ACTIVE";
-                    
-                    // Try to join again
-                    setTimeout(() => {
-                        if (api) {
-                            try {
-                                api.executeCommand('subject', 'Cosmic Uplink');
-                            } catch (e) {
-                                // Ignore
-                            }
-                        }
-                    }, 1000);
+            // Set active step
+            if (stepNumber > 0 && stepNumber <= steps.length) {
+                const step = steps[stepNumber - 1];
+                if (state === 'active') {
+                    step.className = 'step active';
+                } else if (state === 'completed') {
+                    step.className = 'step completed';
+                } else if (state === 'error') {
+                    step.className = 'step';
+                    step.style.color = '#f00';
                 }
-            }, 10000);
+            }
         }
         
         // ======================
         // BROWSER COMPATIBILITY
         // ======================
+        // Handle Android back button
+        tg.BackButton.onClick(() => {
+            if (api) {
+                api.executeCommand('hangup');
+            }
+            tg.close();
+        });
         
-        // Handle browser-specific issues
-        if (isIOS) {
-            // iOS Safari needs special handling
-            document.addEventListener('touchstart', () => {
-                // iOS requires user interaction before playing video
-                if (api && !hasPermissions) {
-                    setTimeout(() => {
-                        try {
-                            api.executeCommand('toggleAudio');
-                            api.executeCommand('toggleVideo');
-                        } catch (e) {
-                            // Ignore errors
-                        }
-                    }, 1000);
-                }
-            }, { once: true });
-        }
-        
-        // Handle page visibility changes
+        // Handle page visibility
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                document.getElementById('status-text').textContent = "> CONNECTION SUSPENDED";
+                updateStatus("> CONNECTION SUSPENDED");
             } else {
-                document.getElementById('status-text').textContent = "> CONNECTION RESTORED";
+                updateStatus("> CONNECTION RESTORED");
             }
         });
         
-        // Handle beforeunload
+        // Prevent accidental refresh/close
         window.addEventListener('beforeunload', (e) => {
             if (api) {
                 e.preventDefault();
@@ -689,39 +886,18 @@
             }
         });
         
-        // Telegram back button
-        tg.BackButton.onClick(() => {
+        // Touch/click handler for Android autoplay
+        if (isAndroid) {
+            document.addEventListener('touchstart', () => {
+                // Android needs explicit user interaction
+                console.log('Android touch detected');
+            }, { once: true });
+        }
+        
+        // Auto-cleanup on exit
+        window.addEventListener('unload', () => {
             if (api) {
-                api.executeCommand('hangup');
-            }
-            tg.close();
-        });
-        
-        // Force start if nothing happens in 30 seconds
-        setTimeout(() => {
-            const loadingScreen = document.getElementById('loading-screen');
-            const meetContainer = document.getElementById('meet-container');
-            
-            if (loadingScreen.classList.contains('active')) {
-                loadingScreen.classList.remove('active');
-                meetContainer.classList.add('active');
-                document.getElementById('status-text').textContent = "> AUTOMATIC START";
-                
-                // Try to inject manual start
-                if (api) {
-                    try {
-                        api.executeCommand('subject', 'Cosmic Uplink - Auto Start');
-                    } catch (e) {
-                        console.log('Auto start command failed');
-                    }
-                }
-            }
-        }, 30000);
-        
-        // Debug: Log all Jitsi events
-        window.addEventListener('message', (event) => {
-            if (event.data && event.data.type) {
-                console.log('Jitsi message:', event.data.type);
+                api.dispose();
             }
         });
     </script>
