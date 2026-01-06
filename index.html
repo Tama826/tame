@@ -1,243 +1,66 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Cosmic Uplink v4.0 - STABLE</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src='https://meet.jit.si/external_api.js'></script>
+    <title>Video Call</title>
     <style>
-        * { 
-            margin: 0; padding: 0; box-sizing: border-box; 
-            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-        }
-        body, html { 
-            width: 100%; height: 100%; background: #000; overflow: hidden;
-            font-family: 'Courier New', monospace; user-select: none;
-        }
-        #meet-container, #boot-screen, #permission-screen, #loading-screen, #error-screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        }
-        #error-screen { background: #111; z-index: 1200; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 20px; color: #f00; text-align: center; }
-        #error-screen.active { display: flex; }
-        #permission-screen { background: #000; z-index: 1100; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 20px; color: #0f0; text-align: center; }
-        #permission-screen.active { display: flex; }
-        .permission-icon { font-size: 50px; margin-bottom: 20px; animation: pulse 2s infinite; }
-        #loading-screen { background: #000; z-index: 1050; display: none; flex-direction: column; justify-content: center; align-items: center; color: #0f0; text-align: center; }
-        #loading-screen.active { display: flex; }
-        #boot-screen { background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #0f0; padding: 20px; text-align: center; }
-        #meet-container { opacity: 0; transition: opacity 0.5s ease; }
-        #meet-container.active { opacity: 1; }
-        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 255, 0, 0.04)); background-size: 100% 4px, 4px 100%; z-index: 999; opacity: 0.5; mix-blend-mode: overlay; }
-        #status-bar { position: absolute; top: 0; left: 0; width: 100%; background: rgba(0, 20, 0, 0.8); color: #0f0; padding: 12px 15px; font-size: 12px; z-index: 1001; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0, 255, 0, 0.2); }
-        #manual-override { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(255, 50, 50, 0.2); border: 1px solid #f00; color: #f00; padding: 10px 20px; font-size: 12px; cursor: pointer; display: none; z-index: 1002; text-transform: uppercase; }
-        #manual-override.active { display: block; }
-        .glow-text { text-shadow: 0 0 10px currentColor; font-size: 14px; line-height: 1.6; margin-bottom: 20px; max-width: 90%; }
-        .blink { animation: blink 1s infinite; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.7; } 50% { transform: scale(1.1); opacity: 1; } }
-        .cyber-btn { background: rgba(0, 255, 0, 0.1); border: 1px solid #0f0; color: #0f0; padding: 14px 28px; font-family: 'Courier New', monospace; font-size: 14px; text-transform: uppercase; cursor: pointer; margin: 10px; transition: all 0.3s; min-width: 200px; text-align: center; border-radius: 2px; }
-        .cyber-btn:hover { background: rgba(0, 255, 0, 0.3); box-shadow: 0 0 20px rgba(0, 255, 0, 0.5); }
-        .btn-group { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 30px; }
-        .loader { width: 40px; height: 40px; border: 3px solid rgba(0, 255, 0, 0.3); border-top: 3px solid #0f0; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        #debug-info { position: absolute; bottom: 10px; left: 10px; color: rgba(0, 255, 0, 0.3); font-size: 10px; z-index: 1001; }
-        .connection-steps { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; text-align: left; font-size: 12px; }
-        .step { display: flex; align-items: center; gap: 10px; opacity: 0.5; }
-        .step.active { opacity: 1; color: #0f0; }
-        .step.completed::before { content: "✓"; color: #0f0; }
-        .step::before { content: "○"; width: 20px; text-align: center; }
-        @supports (padding: max(0px)) { #status-bar { padding-top: max(12px, env(safe-area-inset-top)); } }
+        body { margin: 20px; font-family: Arial; }
+        video { width: 100%; max-width: 600px; border: 2px solid #333; }
+        button { padding: 10px 20px; margin: 5px; }
     </style>
 </head>
 <body>
-    <div id="status-bar">
-        <span id="status-text">> COSMIC UPLINK v4.0</span>
-        <span id="room-display"></span>
+    <h1>Video Call</h1>
+    
+    <div>
+        <video id="localVideo" autoplay muted></video>
     </div>
     
-    <div id="error-screen">
-        <div style="font-size: 40px; margin-bottom: 20px;">⚠️</div>
-        <div class="glow-text" style="color: #f00;">> CONNECTION FAILURE<br>> UNABLE TO ESTABLISH LINK<br><br><span id="error-details">CHECKING FAILURE MODE...</span></div>
-        <div class="btn-group">
-            <button class="cyber-btn" style="border-color: #f00; color: #f00;" onclick="retryConnection()">RETRY CONNECTION</button>
-            <button class="cyber-btn" onclick="hardReset()">FACTORY RESET</button>
-        </div>
+    <div>
+        <button onclick="startCall()">Start Call</button>
+        <button onclick="endCall()">End Call</button>
     </div>
     
-    <div id="permission-screen">
-        <div class="permission-icon">🔒</div>
-        <div class="glow-text">> PERMISSION REQUEST<br>> ACCESS: CAMERA & MICROPHONE<br>> REQUIRED FOR TRANSMISSION<br><br>> TAP "ALLOW" WHEN PROMPTED</div>
-        <div class="connection-steps">
-            <div class="step" id="step1">1. Requesting camera access</div>
-            <div class="step" id="step2">2. Requesting microphone access</div>
-            <div class="step" id="step3">3. Initializing connection</div>
-        </div>
-        <div class="btn-group">
-            <button class="cyber-btn" onclick="requestPermissions()">GRANT PERMISSIONS</button>
-            <button class="cyber-btn" onclick="skipPermissions()">JOIN WITHOUT MEDIA</button>
-        </div>
-    </div>
-    
-    <div id="loading-screen">
-        <div class="loader"></div>
-        <div class="glow-text" id="loading-text">> INITIALIZING QUANTUM LINK...</div>
-        <div class="connection-steps">
-            <div class="step" id="step4">4. Connecting to server</div>
-            <div class="step" id="step5">5. Establishing WebRTC</div>
-            <div class="step" id="step6">6. Joining conference</div>
-        </div>
-    </div>
-    
-    <div id="boot-screen">
-        <div class="glow-text">> COSMIC UPLINK v4.0<br>> SYSTEM INTEGRITY... VERIFIED<br>> ENCRYPTION... ACTIVE<br><br><span class="blink">> AWAITING INITIATION SEQUENCE</span></div>
-        <div class="btn-group"><button class="cyber-btn" onclick="startConnection()">INITIATE UPLINK</button></div>
-        <div style="margin-top: 30px; font-size: 11px; opacity: 0.5;">Auto-initiation in <span id="countdown">8</span>s</div>
-    </div>
-    
-    <div id="meet-container"></div>
-    <div id="overlay"></div>
-    <button id="manual-override" onclick="forceJoinMeeting()">FORCE JOIN MEETING</button>
-    <div id="debug-info"></div>
-
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+        // Hardcoded LiveKit URL
+        const LIVEKIT_URL = 'wss://video-20qatdd3.livekit.cloud';
         
-        let api = null;
-        let connectionAttempts = 0;
-        let hasPermissions = false;
-        let isConnecting = false;
-        let autoStartTimer = null;
-        let countdown = 8;
-        let connectionTimeout = null;
-        
-        const user = tg.initDataUnsafe?.user;
-        const firstName = user?.first_name || 'CosmicTraveler';
+        // Get room from URL
         const urlParams = new URLSearchParams(window.location.search);
-        const roomName = urlParams.get('room') || `COSMIC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-        document.getElementById('room-display').textContent = `ROOM: ${roomName}`;
-
-        function init() {
-            autoStartTimer = setInterval(() => {
-                countdown--;
-                document.getElementById('countdown').textContent = countdown;
-                if (countdown <= 0) { clearInterval(autoStartTimer); startConnection(); }
-            }, 1000);
-        }
-
-        function startConnection() {
-            clearInterval(autoStartTimer);
-            if (isConnecting) return;
-            isConnecting = true;
-            document.getElementById('boot-screen').style.display = 'none';
-            document.getElementById('permission-screen').classList.add('active');
-            updateStep(1, 'active');
-        }
-
-        async function requestPermissions() {
+        const roomName = urlParams.get('room') || 'test-room';
+        
+        let localStream;
+        
+        async function startCall() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                stream.getTracks().forEach(t => t.stop());
-                hasPermissions = true;
-                updateStep(1, 'completed');
-                updateStep(2, 'completed');
-                setTimeout(loadJitsiMeeting, 500);
-            } catch (e) {
-                console.error(e);
-                skipPermissions();
-            }
-        }
-
-        function skipPermissions() {
-            hasPermissions = false;
-            document.getElementById('permission-screen').classList.remove('active');
-            loadJitsiMeeting();
-        }
-
-        function loadJitsiMeeting() {
-            document.getElementById('permission-screen').classList.remove('active');
-            document.getElementById('loading-screen').classList.add('active');
-            updateStep(4, 'active');
-            
-            const domain = 'meet.jit.si';
-            const options = {
-                roomName: roomName,
-                width: '100%',
-                height: '100%',
-                parentNode: document.querySelector('#meet-container'),
-                configOverwrite: {
-                    p2p: { enabled: true, useStunTurn: true },
-                    prejoinPageEnabled: false,
-                    startWithAudioMuted: !hasPermissions,
-                    startWithVideoMuted: !hasPermissions,
-                    disableDeepLinking: true,
-                    enableWelcomePage: false,
-                    enableClosePage: false,
-                    toolbarButtons: ['microphone', 'camera', 'hangup', 'tileview', 'fullscreen', 'chat']
-                },
-                interfaceConfigOverwrite: {
-                    SHOW_JITSI_WATERMARK: false,
-                    SHOW_WATERMARK_FOR_GUESTS: false,
-                    MOBILE_APP_PROMO: false,
-                    DEFAULT_LOCAL_DISPLAY_NAME: firstName
-                },
-                userInfo: { displayName: firstName }
-            };
-
-            try {
-                api = new JitsiMeetExternalAPI(domain, options);
-                setupEventListeners();
-                connectionTimeout = setTimeout(() => {
-                    if (!document.getElementById('meet-container').classList.contains('active')) {
-                        document.getElementById('manual-override').classList.add('active');
-                    }
-                }, 12000);
+                // Get camera and microphone
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: true
+                });
+                
+                // Show local video
+                const localVideo = document.getElementById('localVideo');
+                localVideo.srcObject = localStream;
+                
+                alert('Camera/mic started! Room: ' + roomName);
+                console.log('LiveKit URL:', LIVEKIT_URL);
+                console.log('Room:', roomName);
+                
             } catch (error) {
-                handleConnectionError(error.message);
+                alert('Error: ' + error.message);
             }
         }
-
-        function setupEventListeners() {
-            api.on('videoConferenceJoined', () => {
-                clearTimeout(connectionTimeout);
-                updateStep(6, 'completed');
-                document.getElementById('loading-screen').classList.remove('active');
-                document.getElementById('meet-container').classList.add('active');
-                document.getElementById('manual-override').classList.remove('active');
-                updateStatus("> LINK ESTABLISHED");
-            });
-
-            api.on('connectionEstablished', () => {
-                updateStep(5, 'completed');
-                updateStep(6, 'active');
-            });
-
-            api.on('readyToClose', () => tg.close());
+        
+        function endCall() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                document.getElementById('localVideo').srcObject = null;
+                alert('Call ended');
+            }
         }
-
-        function forceJoinMeeting() {
-            document.getElementById('loading-screen').classList.remove('active');
-            document.getElementById('meet-container').classList.add('active');
-            document.getElementById('manual-override').classList.remove('active');
-        }
-
-        function handleConnectionError(m) {
-            document.getElementById('error-details').textContent = m;
-            document.getElementById('error-screen').classList.add('active');
-        }
-
-        function updateStatus(t) { document.getElementById('status-text').textContent = t; }
-
-        function updateStep(n, s) {
-            const el = document.getElementById(`step${n}`);
-            if (el) el.className = `step ${s}`;
-        }
-
-        function retryConnection() { location.reload(); }
-        function hardReset() { location.href = location.pathname; }
-
-        window.addEventListener('load', init);
+        
+        // Auto-start for testing
+        // startCall();
     </script>
 </body>
 </html>
