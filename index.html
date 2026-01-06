@@ -1,194 +1,66 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Video Call - DEBUG</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Call Room</title>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background: #f0f0f0;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .status {
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 5px;
-            font-weight: bold;
-        }
-        .good { background: #d4edda; color: #155724; }
-        .bad { background: #f8d7da; color: #721c24; }
-        .info { background: #d1ecf1; color: #0c5460; }
-        video {
-            width: 100%;
-            max-width: 600px;
-            border: 2px solid #333;
-            border-radius: 5px;
-            margin: 10px 0;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 5px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        .url-display {
-            background: #e9ecef;
-            padding: 10px;
-            border-radius: 5px;
-            word-break: break-all;
-            font-family: monospace;
-            margin: 10px 0;
-        }
+        body { font-family: sans-serif; background: #1a1a1a; color: white; text-align: center; margin: 0; padding: 20px; }
+        #video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; max-width: 1200px; margin: 20px auto; }
+        video { width: 100%; border-radius: 12px; background: #000; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .status { color: #4caf50; font-weight: bold; margin-bottom: 10px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎥 Video Call - DEBUG MODE</h1>
-        
-        <div id="status" class="status info">Loading...</div>
-        
-        <h3>📊 URL Parameters:</h3>
-        <div id="urlParams" class="url-display">Checking...</div>
-        
-        <h3>🎬 Video Preview:</h3>
-        <video id="localVideo" autoplay muted playsinline></video>
-        
-        <div>
-            <button onclick="startCamera()">Start Camera</button>
-            <button onclick="stopCamera()">Stop Camera</button>
-            <button onclick="testLiveKit()">Test LiveKit</button>
-        </div>
-        
-        <h3>🔍 Debug Info:</h3>
-        <div id="debugInfo" class="url-display"></div>
-    </div>
+    <h2>🎥 Secure Video Room</h2>
+    <div id="status" class="status">Connecting to server...</div>
+    <div id="video-grid"></div>
 
     <script>
-        // Get ALL URL parameters
+        const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud";
         const urlParams = new URLSearchParams(window.location.search);
-        const roomName = urlParams.get('room');
         const token = urlParams.get('token');
-        
-        // Display URL information
-        const urlDisplay = document.getElementById('urlParams');
-        const statusEl = document.getElementById('status');
-        const debugEl = document.getElementById('debugInfo');
-        
-        // Show all parameters
-        let paramsHTML = '<strong>Full URL:</strong><br>' + window.location.href + '<br><br>';
-        paramsHTML += '<strong>Parameters found:</strong><br>';
-        
-        for (const [key, value] of urlParams.entries()) {
-            paramsHTML += `• ${key}: <strong>${value || '(empty)'}</strong><br>`;
-        }
-        
-        urlDisplay.innerHTML = paramsHTML;
-        
-        // Check if we have required parameters
-        if (!roomName && !token) {
-            statusEl.innerHTML = '❌ ERROR: No room or token found in URL!';
-            statusEl.className = 'status bad';
-            
-            debugEl.innerHTML = 
-                'Your bot should send a link like:<br>' +
-                'https://tama826.github.io/tame?room=ROOM_NAME&token=TOKEN_VALUE<br><br>' +
-                'Current bot is sending: ' + window.location.href;
-        } else if (!roomName) {
-            statusEl.innerHTML = '⚠️ WARNING: Room parameter missing!';
-            statusEl.className = 'status bad';
-        } else if (!token) {
-            statusEl.innerHTML = '⚠️ WARNING: Token parameter missing!';
-            statusEl.className = 'status bad';
-        } else {
-            statusEl.innerHTML = '✅ SUCCESS: Both room and token found!';
-            statusEl.className = 'status good';
-            
-            debugEl.innerHTML = 
-                `Room: ${roomName}<br>` +
-                `Token: ${token.substring(0, 50)}...<br>` +
-                `LiveKit URL: wss://video-20qatdd3.livekit.cloud`;
-        }
-        
-        // Camera functions
-        let localStream = null;
-        
-        async function startCamera() {
+
+        async function joinRoom() {
+            if (!token) {
+                document.getElementById('status').innerText = "❌ Error: No token provided from Telegram.";
+                document.getElementById('status').style.color = "red";
+                return;
+            }
+
+            const room = new LiveKit.Room();
+
+            // Handle incoming remote video
+            room.on(LiveKit.RoomEvent.TrackSubscribed, (track) => {
+                const element = track.attach();
+                document.getElementById('video-grid').appendChild(element);
+            });
+
+            // Remove video when user leaves
+            room.on(LiveKit.RoomEvent.TrackUnsubscribed, (track) => {
+                track.detach().forEach(el => el.remove());
+            });
+
             try {
-                const constraints = {
-                    video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        facingMode: 'user'
-                    },
-                    audio: true
-                };
+                await room.connect(LIVEKIT_URL, token);
+                document.getElementById('status').innerText = "✅ Connected as " + room.localParticipant.identity;
+
+                // Turn on camera and mic immediately
+                await room.localParticipant.enableCameraAndMicrophone();
                 
-                localStream = await navigator.mediaDevices.getUserMedia(constraints);
-                const videoElement = document.getElementById('localVideo');
-                videoElement.srcObject = localStream;
-                
-                debugEl.innerHTML += '<br><br>✅ Camera started successfully!';
-                console.log('Camera started');
-                
+                // Show local video
+                const localTrack = room.localParticipant.getTrack(LiveKit.Track.Source.Camera).videoTrack;
+                const localEl = localTrack.attach();
+                document.getElementById('video-grid').appendChild(localEl);
+
             } catch (error) {
-                debugEl.innerHTML += `<br><br>❌ Camera error: ${error.message}`;
-                console.error('Camera error:', error);
+                console.error(error);
+                document.getElementById('status').innerText = "❌ Connection Failed: " + error.message;
             }
         }
-        
-        function stopCamera() {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                document.getElementById('localVideo').srcObject = null;
-                debugEl.innerHTML += '<br><br>⏹️ Camera stopped';
-            }
-        }
-        
-        function testLiveKit() {
-            debugEl.innerHTML += '<br><br>🔗 Testing LiveKit connection...';
-            
-            // Test if LiveKit client would load
-            if (typeof LiveKitClient === 'undefined') {
-                // Try to load LiveKit SDK
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/@livekit/client-sdk@latest/dist/livekit-client.umd.cjs';
-                script.onload = () => {
-                    debugEl.innerHTML += '<br>✅ LiveKit SDK loaded!';
-                    console.log('LiveKit loaded');
-                };
-                script.onerror = () => {
-                    debugEl.innerHTML += '<br>❌ Failed to load LiveKit SDK';
-                };
-                document.head.appendChild(script);
-            } else {
-                debugEl.innerHTML += '<br>✅ LiveKit SDK already loaded';
-            }
-        }
-        
-        // Auto-start camera if we have parameters
-        window.addEventListener('load', () => {
-            if (roomName && token) {
-                setTimeout(startCamera, 1000);
-            }
-        });
-        
-        // Log everything to console
-        console.log('=== DEBUG INFO ===');
-        console.log('Full URL:', window.location.href);
-        console.log('Room:', roomName);
-        console.log('Token:', token);
-        console.log('All parameters:', Object.fromEntries(urlParams.entries()));
-        console.log('LiveKit URL:', 'wss://video-20qatdd3.livekit.cloud');
+
+        joinRoom();
     </script>
 </body>
 </html>
