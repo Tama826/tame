@@ -1,77 +1,75 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Video Call - DEBUG</title>
-    <!-- Try multiple CDNs for LiveKit -->
-    <script src="https://cdn.jsdelivr.net/npm/@livekit/client-sdk@1.8.1/dist/livekit-client.umd.min.js"></script>
+    <title>Video Call</title>
+    <!-- Try multiple CDN sources for LiveKit -->
+    <script src="https://unpkg.com/@livekit/components-js@latest/dist/livekit-components-js.umd.cjs"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@livekit/components-js@latest/dist/livekit-components-js.css">
     <style>
         body { 
             margin: 0; 
             padding: 20px; 
             font-family: Arial; 
-            background: #f0f0f0;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .debug-box {
-            background: #e9ecef;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 10px 0;
-            font-family: monospace;
-            font-size: 14px;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
-        .warning { background: #fff3cd; color: #856404; }
-        video {
-            width: 100%;
-            max-width: 600px;
-            border: 2px solid #333;
-            margin: 10px 0;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 5px;
-            background: #007bff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             color: white;
+        }
+        h1 { text-align: center; }
+        video { 
+            width: 100%; 
+            max-width: 800px; 
+            border: 3px solid white;
+            border-radius: 10px;
+            display: block;
+            margin: 20px auto;
+        }
+        .controls { text-align: center; margin: 20px; }
+        button {
+            padding: 12px 24px;
+            margin: 10px;
+            background: white;
+            color: #667eea;
             border: none;
             border-radius: 5px;
+            font-size: 16px;
             cursor: pointer;
+            font-weight: bold;
+        }
+        #status {
+            text-align: center;
+            padding: 15px;
+            margin: 20px auto;
+            max-width: 800px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+        }
+        #debug {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎥 Video Call - DEBUG</h1>
-        
-        <div id="debug" class="debug-box">
-            Initializing...
-        </div>
-        
-        <div id="connection-test" class="debug-box">
-            Testing connection...
-        </div>
-        
-        <video id="localVideo" autoplay muted playsinline></video>
-        
-        <div>
-            <button onclick="startCamera()">Start Camera</button>
-            <button onclick="testLiveKitConnection()">Test LiveKit</button>
-            <button onclick="connectToRoom()">Connect to Room</button>
-            <button onclick="checkBrowserSupport()">Check Browser</button>
-        </div>
-        
-        <div id="detailed-debug" class="debug-box"></div>
+    <h1>🎥 Video Call</h1>
+    
+    <div id="status">Loading...</div>
+    
+    <div id="video-container"></div>
+    
+    <div class="controls">
+        <button onclick="startCamera()">Start Camera</button>
+        <button onclick="connectToLiveKit()">Connect to LiveKit</button>
+        <button onclick="stopCamera()">Stop Camera</button>
+        <button onclick="testConnection()">Test Connection</button>
     </div>
+    
+    <div id="debug"></div>
 
     <script>
         // Get URL parameters
@@ -79,110 +77,166 @@
         const roomName = urlParams.get('room');
         const token = urlParams.get('token');
         
+        const statusEl = document.getElementById('status');
         const debugEl = document.getElementById('debug');
-        const connectionTestEl = document.getElementById('connection-test');
-        const detailedDebugEl = document.getElementById('detailed-debug');
-        const localVideo = document.getElementById('localVideo');
+        const videoContainer = document.getElementById('video-container');
         
         let localStream = null;
         let room = null;
         
-        // LiveKit server URL
+        // LiveKit server URL - YOUR SERVER
         const LIVEKIT_URL = 'wss://video-20qatdd3.livekit.cloud';
         
         // Log function
-        function log(message, type = 'info') {
+        function log(message) {
             const timestamp = new Date().toLocaleTimeString();
             const logEntry = `[${timestamp}] ${message}`;
-            
-            if (type === 'error') {
-                debugEl.innerHTML += `<div style="color: red;">❌ ${logEntry}</div>`;
-            } else if (type === 'success') {
-                debugEl.innerHTML += `<div style="color: green;">✅ ${logEntry}</div>`;
-            } else {
-                debugEl.innerHTML += `<div>🔍 ${logEntry}</div>`;
-            }
-            
-            // Keep last 10 lines
-            const lines = debugEl.innerHTML.split('</div>');
-            if (lines.length > 10) {
-                debugEl.innerHTML = lines.slice(-10).join('</div>');
-            }
-            
-            // Also log to console
-            console.log(`[${type.toUpperCase()}] ${message}`);
+            debugEl.innerHTML += logEntry + '<br>';
+            console.log(logEntry);
         }
         
-        // Initial debug info
-        log('Page loaded');
-        log(`Room: ${roomName || 'NOT FOUND'}`);
-        log(`Token: ${token ? 'Found (' + token.length + ' chars)' : 'NOT FOUND'}`);
-        log(`LiveKit URL: ${LIVEKIT_URL}`);
-        
-        // Check browser WebRTC support
-        function checkBrowserSupport() {
-            log('Checking browser support...');
-            
-            const supports = {
-                WebRTC: typeof RTCPeerConnection !== 'undefined',
-                getUserMedia: typeof navigator.mediaDevices?.getUserMedia !== 'undefined',
-                WebSocket: typeof WebSocket !== 'undefined',
-                LiveKitSDK: typeof LiveKitClient !== 'undefined'
-            };
-            
-            let supportHTML = '<strong>Browser Support:</strong><br>';
-            for (const [feature, supported] of Object.entries(supports)) {
-                supportHTML += `${feature}: ${supported ? '✅' : '❌'}<br>`;
-            }
-            
-            connectionTestEl.innerHTML = supportHTML;
-            connectionTestEl.className = 'debug-box ' + (supports.WebRTC ? 'success' : 'error');
-            
-            if (!supports.WebRTC) {
-                log('❌ Browser does not support WebRTC', 'error');
-            } else {
-                log('✅ Browser supports WebRTC', 'success');
-            }
+        // Update status
+        function updateStatus(message, isError = false) {
+            statusEl.innerHTML = message;
+            statusEl.style.background = isError ? '#f44336' : '#4CAF50';
+            log(message);
         }
         
-        // Test LiveKit connection
-        async function testLiveKitConnection() {
-            log('Testing LiveKit WebSocket connection...');
+        // Check if we have required parameters
+        if (!roomName || !token) {
+            updateStatus('❌ Missing room or token in URL!', true);
+            debugEl.innerHTML = `Room: ${roomName || 'NOT FOUND'}<br>Token: ${token || 'NOT FOUND'}`;
+        } else {
+            updateStatus(`✅ Room: ${roomName}<br>Token: ${token.substring(0, 30)}...`);
+        }
+        
+        // Check if LiveKit SDK is loaded
+        function checkLiveKitSDK() {
+            if (typeof LiveKit !== 'undefined') {
+                log('✅ LiveKit SDK loaded (LiveKit object)');
+                return true;
+            }
+            if (typeof LiveKitComponents !== 'undefined') {
+                log('✅ LiveKit Components SDK loaded');
+                return true;
+            }
+            if (typeof window.livekit !== 'undefined') {
+                log('✅ LiveKit SDK loaded (window.livekit)');
+                return true;
+            }
+            log('❌ LiveKit SDK not found in window');
+            return false;
+        }
+        
+        // Test WebSocket connection
+        async function testWebSocket() {
+            log('Testing WebSocket connection...');
             
-            try {
-                // Test WebSocket connection
-                const ws = new WebSocket(LIVEKIT_URL);
-                
-                return new Promise((resolve) => {
+            return new Promise((resolve) => {
+                try {
+                    const ws = new WebSocket(LIVEKIT_URL);
+                    let connected = false;
+                    
                     ws.onopen = () => {
-                        log('✅ WebSocket connection successful to: ' + LIVEKIT_URL, 'success');
+                        connected = true;
+                        log('✅ WebSocket connection successful');
                         ws.close();
                         resolve(true);
                     };
                     
                     ws.onerror = (error) => {
-                        log('❌ WebSocket connection failed: ' + error.type, 'error');
+                        log(`❌ WebSocket error: ${error.type}`);
                         resolve(false);
                     };
                     
-                    // Timeout after 5 seconds
+                    ws.onclose = () => {
+                        if (!connected) {
+                            log('❌ WebSocket closed without opening');
+                            resolve(false);
+                        }
+                    };
+                    
+                    // Timeout
                     setTimeout(() => {
-                        log('❌ WebSocket connection timeout', 'error');
-                        ws.close();
-                        resolve(false);
+                        if (!connected) {
+                            log('❌ WebSocket connection timeout');
+                            ws.close();
+                            resolve(false);
+                        }
                     }, 5000);
-                });
+                    
+                } catch (error) {
+                    log(`❌ WebSocket exception: ${error.message}`);
+                    resolve(false);
+                }
+            });
+        }
+        
+        // Load LiveKit SDK dynamically
+        function loadLiveKitSDK() {
+            return new Promise((resolve) => {
+                // Check if already loaded
+                if (checkLiveKitSDK()) {
+                    resolve(true);
+                    return;
+                }
                 
-            } catch (error) {
-                log('❌ WebSocket error: ' + error.message, 'error');
-                return false;
-            }
+                log('Loading LiveKit SDK...');
+                
+                // Try multiple CDNs
+                const cdnSources = [
+                    'https://cdn.jsdelivr.net/npm/@livekit/client-sdk@1.8.1/dist/livekit-client.umd.min.js',
+                    'https://unpkg.com/@livekit/client-sdk@1.8.1/dist/livekit-client.umd.min.js',
+                    'https://cdn.jsdelivr.net/npm/@livekit/client-sdk@1.5.5/dist/livekit-client.umd.min.js',
+                    'https://unpkg.com/@livekit/client-sdk@1.5.5/dist/livekit-client.umd.min.js',
+                    'https://cdn.jsdelivr.net/npm/@livekit/client-sdk@latest/dist/livekit-client.umd.min.js'
+                ];
+                
+                let loaded = false;
+                let attempts = 0;
+                
+                function tryNextCDN() {
+                    if (loaded || attempts >= cdnSources.length) {
+                        resolve(loaded);
+                        return;
+                    }
+                    
+                    const src = cdnSources[attempts];
+                    attempts++;
+                    log(`Trying CDN ${attempts}: ${src}`);
+                    
+                    const script = document.createElement('script');
+                    script.src = src;
+                    
+                    script.onload = () => {
+                        setTimeout(() => {
+                            if (checkLiveKitSDK()) {
+                                loaded = true;
+                                log(`✅ LiveKit SDK loaded from ${src}`);
+                                resolve(true);
+                            } else {
+                                log(`❌ SDK loaded but not accessible`);
+                                tryNextCDN();
+                            }
+                        }, 500);
+                    };
+                    
+                    script.onerror = () => {
+                        log(`❌ Failed to load from ${src}`);
+                        tryNextCDN();
+                    };
+                    
+                    document.head.appendChild(script);
+                }
+                
+                tryNextCDN();
+            });
         }
         
         // Start camera
         async function startCamera() {
             try {
-                log('Requesting camera access...');
+                updateStatus('Starting camera...');
                 
                 localStream = await navigator.mediaDevices.getUserMedia({
                     video: {
@@ -193,133 +247,167 @@
                     audio: true
                 });
                 
-                localVideo.srcObject = localStream;
-                log('✅ Camera started successfully', 'success');
+                // Create video element
+                const video = document.createElement('video');
+                video.id = 'localVideo';
+                video.autoplay = true;
+                video.muted = true;
+                video.playsInline = true;
+                video.srcObject = localStream;
+                video.style.width = '100%';
+                video.style.maxWidth = '800px';
+                video.style.border = '3px solid white';
+                video.style.borderRadius = '10px';
+                
+                // Clear and add video
+                videoContainer.innerHTML = '';
+                videoContainer.appendChild(video);
+                
+                updateStatus('✅ Camera started!');
                 
             } catch (error) {
-                log('❌ Camera error: ' + error.name + ': ' + error.message, 'error');
+                updateStatus(`❌ Camera error: ${error.name}`, true);
+                log(`Camera error details: ${error.message}`);
             }
         }
         
-        // Connect to LiveKit room
-        async function connectToRoom() {
-            if (!roomName || !token) {
-                log('❌ Missing room or token', 'error');
+        // Stop camera
+        function stopCamera() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+                const video = document.getElementById('localVideo');
+                if (video) video.remove();
+                updateStatus('Camera stopped');
+            }
+        }
+        
+        // Test connection
+        async function testConnection() {
+            updateStatus('Testing connection...');
+            
+            // Test WebSocket first
+            const wsSuccess = await testWebSocket();
+            if (!wsSuccess) {
+                updateStatus('❌ Cannot connect to LiveKit server. Possible issues:', true);
+                log('1. Server might be down');
+                log('2. Firewall blocking WebSocket');
+                log('3. Wrong server URL');
+                log(`Current URL: ${LIVEKIT_URL}`);
                 return;
             }
             
-            if (!localStream) {
-                log('⚠️ Starting camera first...', 'warning');
-                await startCamera();
+            // Test SDK loading
+            const sdkSuccess = await loadLiveKitSDK();
+            if (!sdkSuccess) {
+                updateStatus('❌ Cannot load LiveKit SDK', true);
+                log('Try refreshing the page or check internet connection');
+                return;
             }
             
-            log('Connecting to LiveKit room...');
+            updateStatus('✅ All tests passed! Ready to connect.');
+        }
+        
+        // Connect to LiveKit
+        async function connectToLiveKit() {
+            if (!roomName || !token) {
+                updateStatus('❌ Missing room or token', true);
+                return;
+            }
+            
+            // Load SDK if not loaded
+            const sdkLoaded = await loadLiveKitSDK();
+            if (!sdkLoaded) {
+                updateStatus('❌ LiveKit SDK not loaded', true);
+                return;
+            }
+            
+            updateStatus('Connecting to LiveKit...');
             
             try {
-                // Check if SDK loaded
-                if (typeof LiveKitClient === 'undefined') {
-                    log('❌ LiveKit SDK not loaded. Trying to load...', 'error');
-                    
-                    // Try to load SDK
-                    const script = document.createElement('script');
-                    script.src = 'https://unpkg.com/@livekit/client-sdk@1.8.1/dist/livekit-client.umd.js';
-                    script.onload = () => {
-                        log('✅ LiveKit SDK loaded', 'success');
-                        connectToRoom(); // Try again
-                    };
-                    script.onerror = () => {
-                        log('❌ Failed to load LiveKit SDK', 'error');
-                    };
-                    document.head.appendChild(script);
+                // Different ways to access LiveKit based on SDK version
+                let LiveKitClient;
+                if (typeof window.LiveKitClient !== 'undefined') {
+                    LiveKitClient = window.LiveKitClient;
+                } else if (typeof window.livekit !== 'undefined' && window.livekit.Room) {
+                    // For newer versions
+                    room = new window.livekit.Room();
+                } else if (typeof LiveKit !== 'undefined' && LiveKit.Room) {
+                    // Alternative name
+                    room = new LiveKit.Room();
+                } else {
+                    updateStatus('❌ Cannot find LiveKit Room class', true);
                     return;
                 }
                 
-                // Create room
-                room = new LiveKitClient.Room();
-                
-                // Set up event listeners BEFORE connecting
-                room.on('connected', () => {
-                    log('✅ Connected to room: ' + room.name, 'success');
-                });
-                
-                room.on('disconnected', () => {
-                    log('❌ Disconnected from room', 'error');
-                });
-                
-                room.on('reconnecting', () => {
-                    log('🔄 Reconnecting...', 'warning');
-                });
-                
-                room.on('participantConnected', (participant) => {
-                    log('👤 Participant connected: ' + participant.identity, 'success');
-                });
-                
-                // Connect with timeout
-                const connectPromise = room.connect(LIVEKIT_URL, token);
-                const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error('Connection timeout (10s)')), 10000);
-                });
-                
-                await Promise.race([connectPromise, timeoutPromise]);
-                
-                // Publish local tracks
-                const videoTrack = localStream.getVideoTracks()[0];
-                const audioTrack = localStream.getAudioTracks()[0];
-                
-                if (videoTrack) {
-                    await room.localParticipant.publishTrack(videoTrack);
-                    log('✅ Video published', 'success');
+                // Create room using the appropriate method
+                if (!room && LiveKitClient && LiveKitClient.Room) {
+                    room = new LiveKitClient.Room();
                 }
                 
-                if (audioTrack) {
-                    await room.localParticipant.publishTrack(audioTrack);
-                    log('✅ Audio published', 'success');
+                if (!room) {
+                    updateStatus('❌ Failed to create room instance', true);
+                    return;
                 }
                 
-                log('🎉 Fully connected and ready!', 'success');
+                // Connect to room
+                await room.connect(LIVEKIT_URL, token);
+                
+                updateStatus(`✅ Connected to room: ${room.name}`);
+                
+                // Publish local tracks if available
+                if (localStream) {
+                    const videoTrack = localStream.getVideoTracks()[0];
+                    const audioTrack = localStream.getAudioTracks()[0];
+                    
+                    if (videoTrack) {
+                        await room.localParticipant.publishTrack(videoTrack);
+                        log('✅ Video published');
+                    }
+                    
+                    if (audioTrack) {
+                        await room.localParticipant.publishTrack(audioTrack);
+                        log('✅ Audio published');
+                    }
+                }
+                
+                // Listen for participants
+                room.on('participantConnected', participant => {
+                    log(`👤 ${participant.identity} joined`);
+                    updateStatus(`${participant.identity} joined the call!`);
+                });
+                
+                updateStatus('🎉 Connected! Share the link with others.');
                 
             } catch (error) {
-                log('❌ Connection error: ' + error.message, 'error');
+                updateStatus(`❌ Connection failed: ${error.message}`, true);
+                log(`Error details: ${error.stack}`);
                 
-                // Provide specific error messages
-                if (error.message.includes('timeout')) {
-                    log('⚠️ Connection timeout. Possible issues:', 'error');
-                    log('1. LiveKit server might be down', 'error');
-                    log('2. Firewall blocking WebSocket', 'error');
-                    log('3. Invalid credentials', 'error');
-                } else if (error.message.includes('JWT')) {
-                    log('⚠️ Token error. Check if token is valid:', 'error');
-                    log('Token: ' + token.substring(0, 50) + '...', 'error');
+                // Common error messages
+                if (error.message.includes('JWT')) {
+                    log('⚠️ Token error. Check if token is valid JWT');
                 } else if (error.message.includes('WebSocket')) {
-                    log('⚠️ WebSocket error. Check server URL:', 'error');
-                    log('URL: ' + LIVEKIT_URL, 'error');
+                    log('⚠️ WebSocket error. Server might be unreachable');
+                } else if (error.message.includes('room')) {
+                    log('⚠️ Room error. Token might not have room permissions');
                 }
-                
-                console.error('Full error:', error);
             }
         }
         
-        // Auto-run tests on page load
+        // Auto-start on page load
         window.addEventListener('load', async () => {
-            checkBrowserSupport();
+            log('Page loaded');
+            log(`Room: ${roomName}`);
+            log(`Token length: ${token ? token.length : 0} chars`);
+            log(`LiveKit URL: ${LIVEKIT_URL}`);
             
             if (roomName && token) {
-                setTimeout(startCamera, 1000);
-                
-                // Test LiveKit connection
-                const connected = await testLiveKitConnection();
-                if (connected) {
-                    log('✅ Server is reachable', 'success');
-                } else {
-                    log('❌ Server is not reachable', 'error');
-                }
+                // Test connection automatically
+                setTimeout(testConnection, 1000);
+                // Start camera after 2 seconds
+                setTimeout(startCamera, 2000);
             }
         });
-        
-        // Log all errors
-        window.onerror = function(message, source, lineno, colno, error) {
-            log('Global error: ' + message, 'error');
-        };
     </script>
 </body>
 </html>
