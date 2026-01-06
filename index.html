@@ -2,106 +2,372 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cosmic Uplink</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Cosmic Uplink v3.0</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src='https://meet.jit.si/external_api.js'></script>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; background-color: #000; overflow: hidden; font-family: 'Courier New', monospace; user-select: none; -webkit-user-select: none; }
+        /* GLOBAL STYLES */
+        * { 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent;
+        }
         
-        /* THE CONTAINER */
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            height: 100%; 
+            background-color: #000; 
+            overflow: hidden; 
+            font-family: 'Courier New', monospace, -apple-system, BlinkMacSystemFont, sans-serif;
+            user-select: none; 
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        
+        /* MOBILE-OPTIMIZED CONTAINERS */
+        #mobile-optimizer, #meet-container, #boot-screen, #text-hider, #overlay, #touch-controls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* MOBILE OPTIMIZER (Handles orientation/network) */
+        #mobile-optimizer {
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 800;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 25px;
+            text-align: center;
+            color: #0f0;
+            backdrop-filter: blur(5px);
+        }
+
+        #mobile-optimizer.active {
+            display: flex;
+        }
+
+        .optimizer-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 10px #0f0);
+        }
+
+        /* MAIN CONTAINER */
         #meet-container { 
-            width: 100%; height: 100%; 
             opacity: 0; 
-            transition: opacity 2s ease-in;
+            transition: opacity 1.5s ease-in;
             filter: sepia(30%) hue-rotate(190deg) contrast(120%) saturate(110%);
+            transform: translateZ(0); /* GPU acceleration */
         }
 
-        /* CRT SCANLINE OVERLAY */
+        /* CRT SCANLINE OVERLAY - Mobile Optimized */
         #overlay { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            background-size: 100% 3px, 3px 100%; z-index: 999; opacity: 0.6; mix-blend-mode: overlay;
+            pointer-events: none;
+            background: 
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+            background-size: 100% 4px, 4px 100%; 
+            z-index: 999; 
+            opacity: 0.5; 
+            mix-blend-mode: overlay;
         }
 
-        /* BOOT SCREEN */
-        #boot-screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 500;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: #0f0; padding: 20px; text-align: center;
+        /* TOUCH-FRIENDLY CONTROLS OVERLAY */
+        #touch-controls {
+            pointer-events: none;
+            z-index: 998;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding: 20px;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+        }
+
+        .touch-button {
+            pointer-events: auto;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(0, 20, 0, 0.7);
+            border: 2px solid #0f0;
+            color: #0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
             cursor: pointer;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+            backdrop-filter: blur(10px);
         }
 
-        /* TEXT HIDER OVERLAY - New element to hide text inputs */
+        .touch-button:active {
+            transform: scale(0.9);
+            background: rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 25px rgba(0, 255, 0, 0.5);
+        }
+
+        /* BOOT SCREEN - Mobile Optimized */
+        #boot-screen {
+            background: #000; 
+            z-index: 1000;
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center;
+            color: #0f0; 
+            padding: 25px; 
+            text-align: center;
+            cursor: pointer;
+            padding-bottom: calc(25px + env(safe-area-inset-bottom));
+        }
+
+        /* TEXT HIDER */
         #text-hider {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 600; /* Above Jitsi but below boot screen */
+            background: #000; 
+            z-index: 600;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.5s ease;
         }
 
-        .blink { animation: blinker 1s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0; } }
+        /* TYPOGRAPHY */
+        .blink { 
+            animation: blinker 1.2s ease-in-out infinite; 
+        }
+        
+        @keyframes blinker { 
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
         
         .glow-text { 
-            text-shadow: 0 0 10px #0f0, 0 0 20px #0f0; 
-            font-size: 14px; 
-            letter-spacing: 2px; 
-            line-height: 1.5; 
-            max-width: 90%;
+            text-shadow: 0 0 8px #0f0, 0 0 16px #0f0; 
+            font-size: clamp(12px, 4vw, 16px); 
+            letter-spacing: 1px; 
+            line-height: 1.6; 
+            max-width: 95%;
             word-wrap: break-word;
+            font-weight: 400;
         }
         
+        /* BUTTONS */
         #interaction-trigger { 
-            margin-top: 30px; 
+            margin-top: 40px; 
             border: 1px solid #0f0; 
-            padding: 10px 30px; 
+            padding: 15px 40px; 
             text-transform: uppercase; 
-            font-size: 12px;
-            background: rgba(0, 255, 0, 0.1);
+            font-size: clamp(11px, 3.5vw, 14px);
+            background: rgba(0, 255, 0, 0.15);
             transition: all 0.3s ease;
+            border-radius: 4px;
+            min-height: 50px;
+            min-width: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
         }
         
-        #interaction-trigger:hover {
-            background: rgba(0, 255, 0, 0.2);
-            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        #interaction-trigger:active {
+            background: rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 25px rgba(0, 255, 0, 0.4);
+            transform: scale(0.98);
         }
         
-        /* Connection status indicator */
+        /* CONNECTION STATUS - Mobile Optimized */
         #connection-status {
             position: absolute;
-            bottom: 20px;
+            bottom: calc(15px + env(safe-area-inset-bottom));
             left: 50%;
             transform: translateX(-50%);
             color: #0f0;
-            font-size: 11px;
-            opacity: 0.7;
-            z-index: 1000;
+            font-size: clamp(10px, 3vw, 12px);
+            opacity: 0.8;
+            z-index: 1001;
             text-align: center;
-            width: 100%;
+            width: 95%;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(0, 255, 0, 0.2);
         }
 
-        /* Hidden room info */
+        /* NETWORK QUALITY INDICATOR */
+        #network-quality {
+            position: absolute;
+            top: calc(15px + env(safe-area-inset-top));
+            right: 15px;
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 5px;
+        }
+
+        .quality-bar {
+            width: 30px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .quality-bar.active {
+            background: #0f0;
+            box-shadow: 0 0 8px #0f0;
+        }
+
+        /* ROOM INFO */
         #room-info {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            color: rgba(0, 255, 0, 0.3);
-            font-size: 10px;
-            z-index: 1000;
+            top: calc(15px + env(safe-area-inset-top));
+            left: 15px;
+            color: rgba(0, 255, 0, 0.4);
+            font-size: clamp(9px, 2.5vw, 11px);
+            z-index: 1001;
             user-select: text;
             -webkit-user-select: text;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 5px 10px;
+            border-radius: 10px;
+            max-width: 60%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
+        /* LOADING SPINNER */
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(0, 255, 0, 0.3);
+            border-top: 3px solid #0f0;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* MOBILE-SPECIFIC MEDIA QUERIES */
+        @media (max-width: 768px) {
+            .touch-button {
+                width: 55px;
+                height: 55px;
+                font-size: 22px;
+            }
+            
+            #interaction-trigger {
+                min-height: 55px;
+                min-width: 180px;
+            }
+            
+            .glow-text {
+                line-height: 1.8;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .touch-button {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+            
+            #interaction-trigger {
+                padding: 12px 30px;
+                min-height: 50px;
+                min-width: 160px;
+            }
+            
+            #connection-status {
+                font-size: 11px;
+                padding: 6px 12px;
+            }
+        }
+
+        /* ORIENTATION SPECIFIC */
+        @media (orientation: landscape) and (max-height: 500px) {
+            #boot-screen {
+                padding: 15px;
+            }
+            
+            .glow-text {
+                font-size: clamp(10px, 3vw, 14px);
+                line-height: 1.4;
+            }
+            
+            #interaction-trigger {
+                margin-top: 20px;
+                padding: 10px 25px;
+                min-height: 45px;
+            }
+            
+            .touch-button {
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
+            }
+        }
+
+        /* DARK MODE SUPPORT */
+        @media (prefers-color-scheme: dark) {
+            #overlay {
+                opacity: 0.4;
+            }
+        }
+
+        /* SAFE AREA INSETS FOR NOTCHED DEVICES */
+        .safe-area-top {
+            padding-top: env(safe-area-inset-top);
+        }
+        
+        .safe-area-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
     </style>
 </head>
 <body>
+    <!-- Mobile Optimizer Screen -->
+    <div id="mobile-optimizer">
+        <div class="optimizer-icon">📱</div>
+        <div class="glow-text pulse" id="optimizer-message">
+            > OPTIMIZING FOR MOBILE CONNECTION...
+        </div>
+        <div class="spinner"></div>
+        <div class="glow-text" style="margin-top: 20px; font-size: 12px; opacity: 0.7;">
+            Ensure stable network for best experience
+        </div>
+    </div>
 
+    <!-- Boot Screen -->
     <div id="boot-screen" onclick="initializeUplink()">
         <div class="glow-text">
-            > COSMIC UPLINK v2.1<br>
+            > COSMIC UPLINK v3.0<br>
+            > MOBILE OPTIMIZED<br>
             > SYSTEM BOOT... OK<br>
             > ENCRYPTING FEED... OK<br>
             > BYPASSING FIREWALL... OK<br>
@@ -110,68 +376,185 @@
             <span class="blink">AWAITING BIOMETRIC INPUT</span>
         </div>
         <div id="interaction-trigger">TAP TO CONNECT</div>
-        <div id="room-info" style="display:none;"></div>
+        <div id="room-info"></div>
     </div>
 
+    <!-- Main Containers -->
     <div id="meet-container"></div>
     <div id="text-hider"></div>
     <div id="overlay"></div>
+    
+    <!-- Touch Controls -->
+    <div id="touch-controls">
+        <div class="touch-button" id="toggle-audio" title="Toggle Audio">🎤</div>
+        <div class="touch-button" id="toggle-video" title="Toggle Video">📹</div>
+        <div class="touch-button" id="fullscreen-btn" title="Fullscreen">⛶</div>
+    </div>
+    
+    <!-- Status Indicators -->
     <div id="connection-status"></div>
+    <div id="network-quality">
+        <div class="quality-bar" id="q1"></div>
+        <div class="quality-bar" id="q2"></div>
+        <div class="quality-bar" id="q3"></div>
+        <div class="quality-bar" id="q4"></div>
+        <div class="quality-bar" id="q5"></div>
+    </div>
 
     <script>
+        // Initialize Telegram Web App
         const tg = window.Telegram.WebApp;
         tg.expand();
         tg.BackButton.hide();
-
+        
+        // Detect mobile device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
         // Get user info from Telegram
         const user = tg.initDataUnsafe?.user;
         const username = user?.username || `user_${Math.floor(Math.random() * 10000)}`;
         const firstName = user?.first_name || 'Ghost';
         
+        // Get room from URL or generate
         const urlParams = new URLSearchParams(window.location.search);
         const roomName = urlParams.get('room') || 'COSMIC-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        
+        // State variables
         let api = null;
         let connectionAttempts = 0;
         const maxAttempts = 3;
-
-        // Show room info
-        document.getElementById('room-info').textContent = `ROOM: ${roomName}`;
-        document.getElementById('room-info').style.display = 'block';
-
-        // Auto-start after 5 seconds if no interaction
+        let isAudioMuted = false;
+        let isVideoMuted = false;
+        let networkMonitorInterval = null;
+        let lastNetworkQuality = 5;
+        
+        // DOM Elements
+        const optimizer = document.getElementById('mobile-optimizer');
+        const optimizerMessage = document.getElementById('optimizer-message');
+        const roomInfo = document.getElementById('room-info');
+        const connectionStatus = document.getElementById('connection-status');
+        const qualityBars = [
+            document.getElementById('q1'),
+            document.getElementById('q2'),
+            document.getElementById('q3'),
+            document.getElementById('q4'),
+            document.getElementById('q5')
+        ];
+        
+        // Initialize room info
+        roomInfo.textContent = `ROOM: ${roomName}`;
+        
+        // Mobile-specific optimizations
+        if (isMobile) {
+            // Request persistent storage for better caching
+            if (navigator.storage && navigator.storage.persist) {
+                navigator.storage.persist().then(persistent => {
+                    if (persistent) {
+                        console.log("Storage will not be cleared automatically by pressure.");
+                    }
+                });
+            }
+            
+            // Prevent zoom on double-tap
+            document.addEventListener('dblclick', e => e.preventDefault());
+            
+            // Handle iOS viewport height
+            if (isIOS) {
+                document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+                window.addEventListener('resize', () => {
+                    document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+                });
+            }
+        }
+        
+        // Auto-start timer
         let autoStartTimer = setTimeout(() => {
             document.getElementById('interaction-trigger').innerHTML = "> AUTO-CONNECT INITIATED";
             initializeUplink();
         }, 5000);
-
+        
+        // Initialize Cosmic Uplink
         function initializeUplink() {
             clearTimeout(autoStartTimer);
             
             const bootScreen = document.getElementById('boot-screen');
             const trigger = document.getElementById('interaction-trigger');
-            const status = document.getElementById('connection-status');
             
             trigger.style.display = 'none';
-            status.textContent = "> ESTABLISHING QUANTUM LINK...";
             
-            // Update boot screen text with user info
-            document.querySelector('.glow-text').innerHTML = 
+            // Show mobile optimizer for mobile devices
+            if (isMobile) {
+                showMobileOptimizer();
+                setTimeout(() => {
+                    startJitsiConnection(bootScreen);
+                }, 1500);
+            } else {
+                connectionStatus.textContent = "> ESTABLISHING QUANTUM LINK...";
+                startJitsiConnection(bootScreen);
+            }
+            
+            // Update boot screen with user info
+            document.querySelector('#boot-screen .glow-text').innerHTML = 
                 `> USER IDENTIFIED: ${firstName}<br>` +
                 `> HANDLE: @${username}<br>` +
                 `> CHANNEL: ${roomName}<br>` +
+                `> DEVICE: ${isMobile ? 'MOBILE' : 'DESKTOP'}<br>` +
                 `> ENCRYPTING CONNECTION...<br>` +
                 `> PLEASE STAND BY...`;
-            
-            // Start connection
-            startJitsi(bootScreen, status);
         }
-
-        function startJitsi(bootScreenElement, statusElement) {
+        
+        // Show mobile optimizer
+        function showMobileOptimizer() {
+            optimizer.classList.add('active');
+            
+            const messages = [
+                "> OPTIMIZING BANDWIDTH...",
+                "> TUNING VIDEO CODEC...",
+                "> ADJUSTING BITRATE...",
+                "> READY FOR CONNECTION..."
+            ];
+            
+            let messageIndex = 0;
+            const messageInterval = setInterval(() => {
+                if (messageIndex < messages.length) {
+                    optimizerMessage.textContent = messages[messageIndex];
+                    messageIndex++;
+                } else {
+                    clearInterval(messageInterval);
+                    optimizer.classList.remove('active');
+                }
+            }, 500);
+        }
+        
+        // Start Jitsi connection
+        function startJitsiConnection(bootScreenElement) {
             const domain = 'meet.jit.si';
             
-            // Generate random avatar color based on username
+            // Generate avatar color
             const colors = ['#0f0', '#00ffff', '#ff00ff', '#ffff00', '#00ff80'];
             const avatarColor = colors[username.length % colors.length];
+            
+            // Mobile-specific configuration
+            const mobileConfig = isMobile ? {
+                resolution: isIOS ? 360 : 480, // Lower resolution for mobile
+                maxBitrateVideo: 500000, // Reduced bitrate for mobile
+                startBitrate: 300000,
+                disableSimulcast: false,
+                enableLayerSuspension: true,
+                stereo: false,
+                opusMaxAverageBitrate: 20000,
+                constraints: {
+                    video: {
+                        height: {
+                            ideal: isIOS ? 360 : 480,
+                            max: isIOS ? 720 : 1080,
+                            min: 180
+                        }
+                    }
+                }
+            } : {};
             
             const options = {
                 roomName: roomName,
@@ -193,10 +576,15 @@
                     enableNoisyMicDetection: false,
                     hideLobbyButton: true,
                     
-                    // Hide chat completely
-                    toolbarButtons: ['hangup', 'microphone', 'camera', 'tileview', 'fullscreen'],
+                    // Mobile optimizations
+                    ...mobileConfig,
                     
-                    // Disable all text inputs
+                    // Toolbar configuration
+                    toolbarButtons: isMobile ? 
+                        ['hangup', 'microphone', 'camera', 'fullscreen'] : 
+                        ['hangup', 'microphone', 'camera', 'tileview', 'fullscreen'],
+                    
+                    // Disable chat completely
                     disableChat: true,
                     disablePrivateChat: true,
                     hiddenPremeetingButtons: ['microphone', 'camera', 'select-background', 'invite', 'settings'],
@@ -206,10 +594,23 @@
                     defaultRemoteDisplayName: 'User',
                     enableDisplayNameInStats: false,
                     
-                    // Connection optimization
-                    p2p: { enabled: false },
+                    // Connection settings
+                    p2p: { enabled: isMobile ? false : true }, // Disable P2P on mobile for better reliability
                     enableLayerSuspension: true,
                     startSilent: false,
+                    disabledSounds: ['RECORDING_ON_SOUND', 'RECORDING_OFF_SOUND'],
+                    
+                    // Bandwidth optimizations
+                    enableRemb: true,
+                    enableTcc: true,
+                    videoQuality: {
+                        preferredCodec: 'VP8',
+                        maxBitrateVideo: isMobile ? 500000 : 1500000,
+                        minHeightForQualityLvl: {
+                            360: 720,
+                            720: 1080
+                        }
+                    }
                 },
                 interfaceConfigOverwrite: {
                     // Hide everything
@@ -220,22 +621,31 @@
                     SHOW_BRAND_WATERMARK: false,
                     SHOW_DEEP_LINKING_IMAGE: false,
                     
-                    // Hide all toolbars and buttons
+                    // Mobile-optimized toolbar
                     TOOLBAR_ALWAYS_VISIBLE: false,
-                    INITIAL_TOOLBAR_TIMEOUT: 0,
-                    TOOLBAR_TIMEOUT: 0,
-                    filmStripOnly: false,
+                    INITIAL_TOOLBAR_TIMEOUT: isMobile ? 1000 : 2000,
+                    TOOLBAR_TIMEOUT: isMobile ? 1500 : 3000,
+                    filmStripOnly: isMobile,
+                    
+                    // Optimize for mobile screens
+                    VERTICAL_FILMSTRIP: isMobile,
+                    TILE_VIEW_MAX_COLUMNS: isMobile ? 3 : 5,
+                    MOBILE_APP_PROMO: false,
+                    MAXIMUM_ZOOMING_COEFFICIENT: 1.0,
                     
                     // Disable chat interface
                     DISABLE_VIDEO_BACKGROUND: true,
-                    DISABLE_FOCUS_INDICATOR: true,
-                    DISABLE_DOMINANT_SPEAKER_INDICATOR: true,
+                    DISABLE_FOCUS_INDICATOR: isMobile,
+                    DISABLE_DOMINANT_SPEAKER_INDICATOR: isMobile,
                     DISABLE_TRANSCRIPTION_SUBTITLES: true,
                     DISABLE_RINGING: true,
                     
-                    // Hide participant names
-                    DEFAULT_REMOTE_DISPLAY_NAME: '∙∙∙',
+                    // Hide participant names on mobile
+                    DEFAULT_REMOTE_DISPLAY_NAME: isMobile ? '∙∙∙' : 'User',
                     DEFAULT_LOCAL_DISPLAY_NAME: firstName,
+                    
+                    // Optimize filmstrip
+                    FILM_STRIP_MAX_HEIGHT: isMobile ? 90 : 120,
                     
                     // Custom avatar
                     GENERATE_ROOMNAMES_ON_WELCOME_PAGE: false,
@@ -246,71 +656,80 @@
                     email: `${username}@cosmic.uplink`
                 }
             };
-
+            
+            // Initialize API
             api = new JitsiMeetExternalAPI(domain, options);
-
-            // Show text hider briefly to cover any flash of text inputs
+            
+            // Hide text inputs
             const textHider = document.getElementById('text-hider');
             textHider.style.opacity = '1';
             
-            // Inject custom CSS to hide all text inputs
+            // Inject custom CSS for mobile optimization
             setTimeout(() => {
                 const iframe = document.querySelector('#meet-container iframe');
                 if (iframe && iframe.contentWindow) {
                     try {
                         const style = document.createElement('style');
                         style.textContent = `
-                            /* Hide all text inputs, chat, and form elements */
-                            input[type="text"], 
-                            input[type="email"], 
-                            textarea, 
-                            .input-control, 
-                            .chat-container,
-                            .chat-message,
-                            .prejoin-input-area,
-                            .prejoin-preview-dropdown-container,
-                            .prejoin-error,
-                            .settings-section-container,
-                            .profile-edit,
-                            .lobby-chat,
-                            .welcome-page,
-                            .prejoin-container,
-                            .toolbox-button[data-toolbox="chat"],
-                            .toolbox-button[data-toolbox="invite"],
-                            .new-toolbox .toolbox-content .toolbox-button[aria-label*="chat"],
-                            .toolbox-button-wth-dialog[aria-label*="chat"],
-                            [class*="chat"], 
-                            [id*="chat"],
-                            .sideToolbarContainer__8c0e1,
-                            .notifications-container,
-                            .prejoin-floating-label,
-                            .prejoin-input-label {
+                            /* Mobile-optimized Jitsi styles */
+                            body {
+                                -webkit-font-smoothing: antialiased;
+                                text-size-adjust: 100%;
+                            }
+                            
+                            /* Hide all text inputs and chat */
+                            input, textarea, .chat-container, [class*="chat"], [id*="chat"] {
                                 display: none !important;
                                 visibility: hidden !important;
                                 opacity: 0 !important;
-                                width: 0 !important;
-                                height: 0 !important;
                                 position: absolute !important;
                                 pointer-events: none !important;
                             }
                             
-                            /* Hide any leftover text */
-                            .prejoin-preview-dialog,
-                            .prejoin-preview-container {
-                                background: #000 !important;
+                            /* Mobile-optimized toolbar */
+                            .new-toolbox, .toolbox-content {
+                                background: rgba(0, 0, 0, 0.7) !important;
+                                backdrop-filter: blur(10px) !important;
+                                border-radius: 25px !important;
+                                padding: 5px !important;
+                                margin: 10px !important;
                             }
                             
-                            /* Make sure no text is visible */
-                            .prejoin-input-container,
-                            .prejoin-conference-name,
-                            .prejoin-conference-label {
-                                color: transparent !important;
-                                text-shadow: none !important;
+                            .toolbox-button {
+                                min-width: 44px !important;
+                                min-height: 44px !important;
+                                margin: 0 5px !important;
                             }
+                            
+                            /* Optimize filmstrip for mobile */
+                            .filmstrip {
+                                max-width: ${isMobile ? '100px' : '200px'} !important;
+                            }
+                            
+                            /* Improve touch targets */
+                            button, .clickable {
+                                min-height: 44px !important;
+                                min-width: 44px !important;
+                            }
+                            
+                            /* Optimize video quality */
+                            video {
+                                object-fit: cover !important;
+                            }
+                            
+                            /* Hide unnecessary elements on mobile */
+                            ${isMobile ? `
+                                .watermark, .subject, .connection-info {
+                                    display: none !important;
+                                }
+                                .dominant-speaker {
+                                    border-width: 2px !important;
+                                }
+                            ` : ''}
                         `;
                         iframe.contentDocument.head.appendChild(style);
                     } catch (e) {
-                        console.log("Style injection blocked (expected)");
+                        console.log("Style injection:", e.message);
                     }
                 }
                 
@@ -322,63 +741,67 @@
                     }, 500);
                 }, 1000);
             }, 500);
-
+            
+            // Set up touch controls
+            setupTouchControls();
+            
+            // Start network monitoring
+            startNetworkMonitoring();
+            
             // Event listeners
             api.addEventListeners({
                 videoConferenceJoined: function() {
-                    console.log("Cosmic link established!");
-                    statusElement.textContent = "> CONNECTION SECURE | ENCRYPTED";
+                    console.log("Cosmic link established on", isMobile ? "mobile" : "desktop");
+                    connectionStatus.textContent = "> CONNECTION SECURE | ENCRYPTED";
                     
                     // Hide boot screen
-                    bootScreenElement.style.transition = "opacity 1s";
+                    bootScreenElement.style.transition = "opacity 1s ease";
                     bootScreenElement.style.opacity = "0";
                     
-                    // Show video
-                    document.getElementById('meet-container').style.opacity = "1";
-                    
-                    // Remove boot screen
+                    // Show video with fade
                     setTimeout(() => {
+                        document.getElementById('meet-container').style.opacity = "1";
                         bootScreenElement.style.display = 'none';
                         
-                        // Send join notification to all participants
+                        // Show touch controls on mobile
+                        if (isMobile) {
+                            document.getElementById('touch-controls').style.opacity = "1";
+                        }
+                    }, 800);
+                    
+                    // Send encrypted join message
+                    setTimeout(() => {
                         try {
                             api.executeCommand('sendChatMessage', 
-                                `User ${firstName} has joined the cosmic uplink. Connection encrypted.`
+                                `User ${firstName} has joined the cosmic uplink. Connection encrypted. Device: ${isMobile ? 'Mobile' : 'Desktop'}`
                             );
                         } catch(e) {
-                            // Chat disabled, this is expected
+                            // Chat disabled - expected
                         }
-                    }, 1000);
+                    }, 2000);
                     
-                    // Continuously hide any text inputs that might appear
-                    setInterval(() => {
-                        const iframe = document.querySelector('#meet-container iframe');
-                        if (iframe && iframe.contentDocument) {
-                            const inputs = iframe.contentDocument.querySelectorAll('input, textarea, [contenteditable="true"]');
-                            inputs.forEach(input => {
-                                input.style.display = 'none';
-                                input.style.visibility = 'hidden';
-                                input.style.opacity = '0';
-                                input.style.position = 'absolute';
-                                input.style.pointerEvents = 'none';
-                            });
-                        }
-                    }, 1000);
+                    // Continuously hide text inputs
+                    setInterval(hideTextInputs, 2000);
                 },
                 
                 participantJoined: function() {
-                    statusElement.textContent = `> USER DETECTED | CONNECTION ACTIVE`;
+                    connectionStatus.textContent = `> USER DETECTED | CONNECTION ACTIVE`;
+                    updateNetworkQuality(5); // Best quality when user joins
+                    
                     setTimeout(() => {
-                        statusElement.textContent = `> ENCRYPTED CHANNEL: ${roomName}`;
+                        connectionStatus.textContent = `> ENCRYPTED CHANNEL: ${roomName}`;
                     }, 3000);
                 },
                 
                 participantLeft: function() {
-                    statusElement.textContent = "> USER DISCONNECTED | AWAITING RE-CONNECTION";
+                    connectionStatus.textContent = "> USER DISCONNECTED | AWAITING RE-CONNECTION";
+                    updateNetworkQuality(2); // Lower quality when alone
                 },
                 
                 videoConferenceLeft: function() {
-                    statusElement.textContent = "> CONNECTION TERMINATED";
+                    connectionStatus.textContent = "> CONNECTION TERMINATED";
+                    stopNetworkMonitoring();
+                    
                     setTimeout(() => {
                         tg.close();
                     }, 2000);
@@ -389,46 +812,206 @@
                 }
             });
             
-            // Handle connection errors
+            // Connection status events
             api.on('connectionEstablished', () => {
                 connectionAttempts = 0;
-                statusElement.textContent = "> QUANTUM LINK ACTIVE";
+                connectionStatus.textContent = "> QUANTUM LINK ACTIVE";
+                updateNetworkQuality(5);
             });
             
             api.on('connectionFailed', () => {
                 connectionAttempts++;
-                statusElement.textContent = `> CONNECTION FAILED (Attempt ${connectionAttempts}/${maxAttempts})`;
+                connectionStatus.textContent = `> CONNECTION FAILED (Attempt ${connectionAttempts}/${maxAttempts})`;
+                updateNetworkQuality(1);
                 
                 if (connectionAttempts < maxAttempts) {
                     setTimeout(() => {
-                        statusElement.textContent = "> RE-ESTABLISHING LINK...";
+                        connectionStatus.textContent = "> RE-ESTABLISHING LINK...";
                         api.dispose();
-                        startJitsi(bootScreenElement, statusElement);
+                        startJitsiConnection(bootScreenElement);
                     }, 2000);
                 } else {
-                    statusElement.textContent = "> CRITICAL FAILURE | REBOOT REQUIRED";
+                    connectionStatus.textContent = "> CRITICAL FAILURE | REBOOT REQUIRED";
                     setTimeout(() => {
                         location.reload();
                     }, 3000);
                 }
             });
+            
+            // Track connection quality
+            api.on('connectionQualityChanged', (quality) => {
+                if (quality && quality.connectionQuality) {
+                    const qualityLevel = Math.min(5, Math.ceil(quality.connectionQuality * 5));
+                    updateNetworkQuality(qualityLevel);
+                }
+            });
         }
+        
+        // Set up touch controls
+        function setupTouchControls() {
+            document.getElementById('toggle-audio').addEventListener('click', () => {
+                if (api) {
+                    api.executeCommand('toggleAudio');
+                    isAudioMuted = !isAudioMuted;
+                    document.getElementById('toggle-audio').innerHTML = isAudioMuted ? '🔇' : '🎤';
+                    connectionStatus.textContent = isAudioMuted ? 
+                        "> AUDIO MUTED" : "> AUDIO ACTIVE";
+                }
+            });
+            
+            document.getElementById('toggle-video').addEventListener('click', () => {
+                if (api) {
+                    api.executeCommand('toggleVideo');
+                    isVideoMuted = !isVideoMuted;
+                    document.getElementById('toggle-video').innerHTML = isVideoMuted ? '📵' : '📹';
+                    connectionStatus.textContent = isVideoMuted ? 
+                        "> VIDEO DISABLED" : "> VIDEO ACTIVE";
+                }
+            });
+            
+            document.getElementById('fullscreen-btn').addEventListener('click', () => {
+                const elem = document.documentElement;
+                if (!document.fullscreenElement) {
+                    if (elem.requestFullscreen) {
+                        elem.requestFullscreen();
+                    } else if (elem.webkitRequestFullscreen) {
+                        elem.webkitRequestFullscreen();
+                    } else if (elem.msRequestFullscreen) {
+                        elem.msRequestFullscreen();
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                }
+            });
+            
+            // Hide touch controls on desktop
+            if (!isMobile) {
+                document.getElementById('touch-controls').style.display = 'none';
+            }
+        }
+        
+        // Network monitoring
+        function startNetworkMonitoring() {
+            if (networkMonitorInterval) clearInterval(networkMonitorInterval);
+            
+            networkMonitorInterval = setInterval(() => {
+                if (navigator.connection) {
+                    const connection = navigator.connection;
+                    const downlink = connection.downlink || 5;
+                    const effectiveType = connection.effectiveType || '4g';
+                    
+                    let quality = 5;
+                    if (effectiveType === 'slow-2g') quality = 1;
+                    else if (effectiveType === '2g') quality = 2;
+                    else if (effectiveType === '3g') quality = 3;
+                    else if (effectiveType === '4g') quality = downlink > 2 ? 5 : 4;
+                    
+                    updateNetworkQuality(quality);
+                    
+                    // Update status if quality is poor
+                    if (quality < 3) {
+                        connectionStatus.textContent = `> NETWORK QUALITY: ${effectiveType.toUpperCase()} | ADJUSTING...`;
+                    }
+                }
+            }, 5000);
+        }
+        
+        function stopNetworkMonitoring() {
+            if (networkMonitorInterval) {
+                clearInterval(networkMonitorInterval);
+                networkMonitorInterval = null;
+            }
+        }
+        
+        function updateNetworkQuality(level) {
+            lastNetworkQuality = level;
+            qualityBars.forEach((bar, index) => {
+                if (index < level) {
+                    bar.classList.add('active');
+                } else {
+                    bar.classList.remove('active');
+                }
+            });
+        }
+        
+        // Hide text inputs function
+        function hideTextInputs() {
+            const iframe = document.querySelector('#meet-container iframe');
+            if (iframe && iframe.contentDocument) {
+                const inputs = iframe.contentDocument.querySelectorAll(
+                    'input, textarea, [contenteditable="true"], [role="textbox"]'
+                );
+                inputs.forEach(input => {
+                    input.style.display = 'none';
+                    input.style.visibility = 'hidden';
+                    input.style.opacity = '0';
+                    input.style.position = 'absolute';
+                    input.style.pointerEvents = 'none';
+                    input.setAttribute('tabindex', '-1');
+                });
+            }
+        }
+        
+        // Handle orientation changes
+        let orientationTimer;
+        window.addEventListener('orientationchange', () => {
+            connectionStatus.textContent = "> ORIENTATION CHANGE DETECTED...";
+            
+            clearTimeout(orientationTimer);
+            orientationTimer = setTimeout(() => {
+                connectionStatus.textContent = `> ENCRYPTED CHANNEL: ${roomName}`;
+                
+                // Refresh interface on mobile orientation change
+                if (isMobile && api) {
+                    setTimeout(hideTextInputs, 500);
+                }
+            }, 1000);
+        });
+        
+        // Handle page visibility
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                connectionStatus.textContent = "> CONNECTION SUSPENDED";
+                updateNetworkQuality(1);
+            } else {
+                connectionStatus.textContent = "> CONNECTION RESTORED";
+                updateNetworkQuality(lastNetworkQuality);
+                
+                // Refresh interface when coming back
+                setTimeout(hideTextInputs, 100);
+            }
+        });
         
         // Prevent accidental closing
         window.addEventListener('beforeunload', (e) => {
-            e.preventDefault();
-            e.returnValue = 'Are you sure you want to disconnect from the cosmic uplink?';
-        });
-        
-        // Handle visibility changes (tab switch)
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                document.getElementById('connection-status').textContent = "> CONNECTION SUSPENDED";
-            } else {
-                document.getElementById('connection-status').textContent = "> CONNECTION RESTORED";
+            if (api) {
+                e.preventDefault();
+                e.returnValue = 'Are you sure you want to disconnect from the cosmic uplink?';
             }
         });
-
+        
+        // Handle back button on mobile
+        tg.BackButton.onClick(() => {
+            if (api) {
+                api.executeCommand('hangup');
+            }
+            tg.close();
+        });
+        
+        // Initial hide of touch controls
+        document.getElementById('touch-controls').style.opacity = "0";
+        
+        // Pre-load network info
+        if (isMobile && navigator.connection) {
+            const conn = navigator.connection;
+            console.log(`Network: ${conn.effectiveType}, Downlink: ${conn.downlink}Mbps`);
+        }
     </script>
 </body>
 </html>
