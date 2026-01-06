@@ -7,330 +7,67 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src='https://meet.jit.si/external_api.js'></script>
     <style>
-        /* RESET & GLOBAL */
         * { 
-            margin: 0; 
-            padding: 0; 
-            box-sizing: border-box; 
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
+            margin: 0; padding: 0; box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
         }
-        
         body, html { 
-            width: 100%; 
-            height: 100%; 
-            background: #000;
-            overflow: hidden;
-            font-family: 'Courier New', monospace, -apple-system, sans-serif;
-            user-select: none;
-            -webkit-user-select: none;
+            width: 100%; height: 100%; background: #000; overflow: hidden;
+            font-family: 'Courier New', monospace; user-select: none;
         }
-        
-        /* MAIN CONTAINERS */
         #meet-container, #boot-screen, #permission-screen, #loading-screen, #error-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         }
-        
-        /* ERROR SCREEN */
-        #error-screen {
-            background: #111;
-            z-index: 1200;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            color: #f00;
-            text-align: center;
-        }
-        
-        #error-screen.active {
-            display: flex;
-        }
-        
-        /* PERMISSION SCREEN */
-        #permission-screen {
-            background: #000;
-            z-index: 1100;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            color: #0f0;
-            text-align: center;
-        }
-        
-        #permission-screen.active {
-            display: flex;
-        }
-        
-        .permission-icon {
-            font-size: 50px;
-            margin-bottom: 20px;
-            animation: pulse 2s infinite;
-        }
-        
-        /* LOADING SCREEN */
-        #loading-screen {
-            background: #000;
-            z-index: 1050;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: #0f0;
-            text-align: center;
-        }
-        
-        #loading-screen.active {
-            display: flex;
-        }
-        
-        /* BOOT SCREEN */
-        #boot-screen {
-            background: #000;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: #0f0;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        /* MEET CONTAINER */
-        #meet-container { 
-            opacity: 0;
-            transition: opacity 0.5s ease;
-            filter: sepia(30%) hue-rotate(190deg) contrast(120%) saturate(110%);
-        }
-        
-        #meet-container.active {
-            opacity: 1;
-        }
-        
-        /* OVERLAYS */
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            background: 
-                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
-                linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
-            background-size: 100% 4px, 4px 100%;
-            z-index: 999;
-            opacity: 0.5;
-            mix-blend-mode: overlay;
-        }
-        
-        /* STATUS BAR */
-        #status-bar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            background: rgba(0, 20, 0, 0.8);
-            color: #0f0;
-            padding: 12px 15px;
-            font-size: 12px;
-            z-index: 1001;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(0, 255, 0, 0.2);
-        }
-        
-        /* MANUAL OVERRIDE BUTTON */
-        #manual-override {
-            position: absolute;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 50, 50, 0.2);
-            border: 1px solid #f00;
-            color: #f00;
-            padding: 10px 20px;
-            font-size: 12px;
-            cursor: pointer;
-            display: none;
-            z-index: 1002;
-            text-transform: uppercase;
-        }
-        
-        #manual-override.active {
-            display: block;
-        }
-        
-        /* TYPOGRAPHY */
-        .glow-text {
-            text-shadow: 0 0 10px currentColor;
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 20px;
-            max-width: 90%;
-        }
-        
-        .blink {
-            animation: blink 1s infinite;
-        }
-        
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 0.7; }
-            50% { transform: scale(1.1); opacity: 1; }
-        }
-        
-        /* BUTTONS */
-        .cyber-btn {
-            background: rgba(0, 255, 0, 0.1);
-            border: 1px solid #0f0;
-            color: #0f0;
-            padding: 14px 28px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            text-transform: uppercase;
-            cursor: pointer;
-            margin: 10px;
-            transition: all 0.3s;
-            min-width: 200px;
-            text-align: center;
-            border-radius: 2px;
-            letter-spacing: 1px;
-        }
-        
-        .cyber-btn:hover {
-            background: rgba(0, 255, 0, 0.3);
-            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
-        }
-        
-        .cyber-btn:active {
-            transform: scale(0.95);
-        }
-        
-        .btn-group {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 30px;
-        }
-        
-        /* LOADER */
-        .loader {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(0, 255, 0, 0.3);
-            border-top: 3px solid #0f0;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 20px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        /* DEBUG INFO */
-        #debug-info {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            color: rgba(0, 255, 0, 0.3);
-            font-size: 10px;
-            z-index: 1001;
-        }
-        
-        /* CONNECTION STEPS */
-        .connection-steps {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 20px;
-            text-align: left;
-            font-size: 12px;
-        }
-        
-        .step {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            opacity: 0.5;
-        }
-        
-        .step.active {
-            opacity: 1;
-            color: #0f0;
-        }
-        
-        .step.completed::before {
-            content: "✓";
-            color: #0f0;
-        }
-        
-        .step::before {
-            content: "○";
-            width: 20px;
-            text-align: center;
-        }
-        
-        /* SAFE AREA ADJUSTMENTS */
-        @supports (padding: max(0px)) {
-            #status-bar {
-                padding-top: max(12px, env(safe-area-inset-top));
-                padding-left: max(15px, env(safe-area-inset-left));
-                padding-right: max(15px, env(safe-area-inset-right));
-            }
-        }
+        #error-screen { background: #111; z-index: 1200; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 20px; color: #f00; text-align: center; }
+        #error-screen.active { display: flex; }
+        #permission-screen { background: #000; z-index: 1100; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 20px; color: #0f0; text-align: center; }
+        #permission-screen.active { display: flex; }
+        .permission-icon { font-size: 50px; margin-bottom: 20px; animation: pulse 2s infinite; }
+        #loading-screen { background: #000; z-index: 1050; display: none; flex-direction: column; justify-content: center; align-items: center; color: #0f0; text-align: center; }
+        #loading-screen.active { display: flex; }
+        #boot-screen { background: #000; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #0f0; padding: 20px; text-align: center; }
+        #meet-container { opacity: 0; transition: opacity 0.5s ease; }
+        #meet-container.active { opacity: 1; }
+        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 255, 0, 0.04)); background-size: 100% 4px, 4px 100%; z-index: 999; opacity: 0.5; mix-blend-mode: overlay; }
+        #status-bar { position: absolute; top: 0; left: 0; width: 100%; background: rgba(0, 20, 0, 0.8); color: #0f0; padding: 12px 15px; font-size: 12px; z-index: 1001; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(10px); border-bottom: 1px solid rgba(0, 255, 0, 0.2); }
+        #manual-override { position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(255, 50, 50, 0.2); border: 1px solid #f00; color: #f00; padding: 10px 20px; font-size: 12px; cursor: pointer; display: none; z-index: 1002; text-transform: uppercase; }
+        #manual-override.active { display: block; }
+        .glow-text { text-shadow: 0 0 10px currentColor; font-size: 14px; line-height: 1.6; margin-bottom: 20px; max-width: 90%; }
+        .blink { animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.7; } 50% { transform: scale(1.1); opacity: 1; } }
+        .cyber-btn { background: rgba(0, 255, 0, 0.1); border: 1px solid #0f0; color: #0f0; padding: 14px 28px; font-family: 'Courier New', monospace; font-size: 14px; text-transform: uppercase; cursor: pointer; margin: 10px; transition: all 0.3s; min-width: 200px; text-align: center; border-radius: 2px; }
+        .cyber-btn:hover { background: rgba(0, 255, 0, 0.3); box-shadow: 0 0 20px rgba(0, 255, 0, 0.5); }
+        .btn-group { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 30px; }
+        .loader { width: 40px; height: 40px; border: 3px solid rgba(0, 255, 0, 0.3); border-top: 3px solid #0f0; border-radius: 50%; animation: spin 1s linear infinite; margin: 20px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        #debug-info { position: absolute; bottom: 10px; left: 10px; color: rgba(0, 255, 0, 0.3); font-size: 10px; z-index: 1001; }
+        .connection-steps { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; text-align: left; font-size: 12px; }
+        .step { display: flex; align-items: center; gap: 10px; opacity: 0.5; }
+        .step.active { opacity: 1; color: #0f0; }
+        .step.completed::before { content: "✓"; color: #0f0; }
+        .step::before { content: "○"; width: 20px; text-align: center; }
+        @supports (padding: max(0px)) { #status-bar { padding-top: max(12px, env(safe-area-inset-top)); } }
     </style>
 </head>
 <body>
-    <!-- Status Bar -->
     <div id="status-bar">
         <span id="status-text">> COSMIC UPLINK v4.0</span>
         <span id="room-display"></span>
     </div>
     
-    <!-- Error Screen -->
     <div id="error-screen">
         <div style="font-size: 40px; margin-bottom: 20px;">⚠️</div>
-        <div class="glow-text" style="color: #f00;">
-            > CONNECTION FAILURE<br>
-            > UNABLE TO ESTABLISH LINK<br>
-            <br>
-            <span id="error-details">CHECKING FAILURE MODE...</span>
-        </div>
+        <div class="glow-text" style="color: #f00;">> CONNECTION FAILURE<br>> UNABLE TO ESTABLISH LINK<br><br><span id="error-details">CHECKING FAILURE MODE...</span></div>
         <div class="btn-group">
             <button class="cyber-btn" style="border-color: #f00; color: #f00;" onclick="retryConnection()">RETRY CONNECTION</button>
             <button class="cyber-btn" onclick="hardReset()">FACTORY RESET</button>
         </div>
     </div>
     
-    <!-- Permission Screen -->
     <div id="permission-screen">
         <div class="permission-icon">🔒</div>
-        <div class="glow-text">
-            > PERMISSION REQUEST<br>
-            > ACCESS: CAMERA & MICROPHONE<br>
-            > REQUIRED FOR COSMIC TRANSMISSION<br>
-            <br>
-            > TAP "ALLOW" WHEN PROMPTED<br>
-            > DO NOT SELECT "BLOCK"
-        </div>
+        <div class="glow-text">> PERMISSION REQUEST<br>> ACCESS: CAMERA & MICROPHONE<br>> REQUIRED FOR TRANSMISSION<br><br>> TAP "ALLOW" WHEN PROMPTED</div>
         <div class="connection-steps">
             <div class="step" id="step1">1. Requesting camera access</div>
             <div class="step" id="step2">2. Requesting microphone access</div>
@@ -342,12 +79,9 @@
         </div>
     </div>
     
-    <!-- Loading Screen -->
     <div id="loading-screen">
         <div class="loader"></div>
-        <div class="glow-text" id="loading-text">
-            > INITIALIZING QUANTUM LINK...
-        </div>
+        <div class="glow-text" id="loading-text">> INITIALIZING QUANTUM LINK...</div>
         <div class="connection-steps">
             <div class="step" id="step4">4. Connecting to server</div>
             <div class="step" id="step5">5. Establishing WebRTC</div>
@@ -355,551 +89,155 @@
         </div>
     </div>
     
-    <!-- Boot Screen -->
     <div id="boot-screen">
-        <div class="glow-text">
-            > COSMIC UPLINK v4.0<br>
-            > ANDROID OPTIMIZED<br>
-            > SYSTEM INTEGRITY... VERIFIED<br>
-            > ENCRYPTION MODULE... ACTIVE<br>
-            > FIREWALL BYPASS... ONLINE<br>
-            <br>
-            <span class="blink">> AWAITING INITIATION SEQUENCE</span>
-        </div>
-        <div class="btn-group">
-            <button class="cyber-btn" onclick="startConnection()">INITIATE UPLINK</button>
-        </div>
-        <div style="margin-top: 30px; font-size: 11px; opacity: 0.5;">
-            Auto-initiation in <span id="countdown">8</span> seconds
-        </div>
+        <div class="glow-text">> COSMIC UPLINK v4.0<br>> SYSTEM INTEGRITY... VERIFIED<br>> ENCRYPTION... ACTIVE<br><br><span class="blink">> AWAITING INITIATION SEQUENCE</span></div>
+        <div class="btn-group"><button class="cyber-btn" onclick="startConnection()">INITIATE UPLINK</button></div>
+        <div style="margin-top: 30px; font-size: 11px; opacity: 0.5;">Auto-initiation in <span id="countdown">8</span>s</div>
     </div>
     
-    <!-- Main Container -->
     <div id="meet-container"></div>
     <div id="overlay"></div>
-    
-    <!-- Manual Override -->
     <button id="manual-override" onclick="forceJoinMeeting()">FORCE JOIN MEETING</button>
-    
-    <!-- Debug Info -->
     <div id="debug-info"></div>
 
     <script>
-        // ======================
-        // GLOBAL STATE
-        // ======================
         const tg = window.Telegram.WebApp;
         tg.expand();
-        tg.BackButton.hide();
         
-        // Environment detection
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        const isAndroid = /Android/i.test(navigator.userAgent);
-        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-        const isChrome = /Chrome/i.test(navigator.userAgent);
-        
-        // Application state
         let api = null;
         let connectionAttempts = 0;
-        const MAX_ATTEMPTS = 3;
         let hasPermissions = false;
         let isConnecting = false;
         let autoStartTimer = null;
         let countdown = 8;
-        let forceJoinTimer = null;
         let connectionTimeout = null;
         
-        // User info
         const user = tg.initDataUnsafe?.user;
-        const username = user?.username || `user_${Math.floor(Math.random() * 10000)}`;
         const firstName = user?.first_name || 'CosmicTraveler';
-        
-        // Room info
         const urlParams = new URLSearchParams(window.location.search);
         const roomName = urlParams.get('room') || `COSMIC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
         document.getElementById('room-display').textContent = `ROOM: ${roomName}`;
-        
-        // Debug info
-        document.getElementById('debug-info').textContent = 
-            `Android: ${isAndroid ? 'Yes' : 'No'} | Chrome: ${isChrome ? 'Yes' : 'No'}`;
-        
-        // ======================
-        // INITIALIZATION
-        // ======================
+
         function init() {
-            startCountdown();
-            updateStep(0); // Reset all steps
-        }
-        
-        function startCountdown() {
-            const countdownEl = document.getElementById('countdown');
             autoStartTimer = setInterval(() => {
                 countdown--;
-                countdownEl.textContent = countdown;
-                if (countdown <= 0) {
-                    clearInterval(autoStartTimer);
-                    startConnection();
-                }
+                document.getElementById('countdown').textContent = countdown;
+                if (countdown <= 0) { clearInterval(autoStartTimer); startConnection(); }
             }, 1000);
         }
-        
-        window.addEventListener('load', init);
-        
-        // ======================
-        // CONNECTION FLOW
-        // ======================
+
         function startConnection() {
             clearInterval(autoStartTimer);
             if (isConnecting) return;
-            
             isConnecting = true;
-            connectionAttempts = 0;
-            updateStatus("> INITIATING CONNECTION...");
-            
-            // Show permission screen first
-            showPermissionScreen();
-        }
-        
-        function showPermissionScreen() {
             document.getElementById('boot-screen').style.display = 'none';
             document.getElementById('permission-screen').classList.add('active');
-            updateStep(1);
-        }
-        
-        // ======================
-        // PERMISSION HANDLING
-        // ======================
-        async function requestPermissions() {
             updateStep(1, 'active');
-            
+        }
+
+        async function requestPermissions() {
             try {
-                // Step 1: Camera
-                updateStatus("> REQUESTING CAMERA ACCESS...");
-                const cameraStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 },
-                        frameRate: { ideal: 24 }
-                    },
-                    audio: false 
-                });
-                cameraStream.getTracks().forEach(track => track.stop());
-                updateStep(1, 'completed');
-                
-                // Step 2: Microphone
-                updateStep(2, 'active');
-                updateStatus("> REQUESTING MICROPHONE ACCESS...");
-                const micStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    },
-                    video: false 
-                });
-                micStream.getTracks().forEach(track => track.stop());
-                updateStep(2, 'completed');
-                
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                stream.getTracks().forEach(t => t.stop());
                 hasPermissions = true;
-                updateStatus("> PERMISSIONS GRANTED");
-                
-                // Proceed to loading
-                setTimeout(() => {
-                    document.getElementById('permission-screen').classList.remove('active');
-                    loadJitsiMeeting();
-                }, 500);
-                
-            } catch (error) {
-                console.error('Permission error:', error);
-                updateStep(error.name === 'NotAllowedError' ? 2 : 1, 'error');
-                
-                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
-                    updateStatus("> PERMISSION DENIED");
-                    showError("Camera/microphone access was denied. Please check browser permissions.");
-                } else {
-                    updateStatus("> DEVICE ERROR");
-                    skipPermissions();
-                }
+                updateStep(1, 'completed');
+                updateStep(2, 'completed');
+                setTimeout(loadJitsiMeeting, 500);
+            } catch (e) {
+                console.error(e);
+                skipPermissions();
             }
         }
-        
+
         function skipPermissions() {
-            updateStatus("> SKIPPING MEDIA PERMISSIONS...");
             hasPermissions = false;
             document.getElementById('permission-screen').classList.remove('active');
             loadJitsiMeeting();
         }
-        
-        // ======================
-        // JITSI CONFIGURATION (ANDROID FIXED)
-        // ======================
+
         function loadJitsiMeeting() {
+            document.getElementById('permission-screen').classList.remove('active');
             document.getElementById('loading-screen').classList.add('active');
             updateStep(4, 'active');
-            updateStatus("> LOADING INTERFACE...");
-            
-            // Small delay for UI transition
-            setTimeout(initializeJitsi, 300);
-        }
-        
-        function initializeJitsi() {
-            updateStep(5, 'active');
-            updateStatus("> CONFIGURING WEBRTC...");
             
             const domain = 'meet.jit.si';
-            
-            // CRITICAL: Android-specific configuration to prevent "searching" issue
             const options = {
                 roomName: roomName,
                 width: '100%',
                 height: '100%',
                 parentNode: document.querySelector('#meet-container'),
                 configOverwrite: {
-                    // DISABLE PREJOIN PAGE COMPLETELY (Main fix for Android)
+                    p2p: { enabled: true, useStunTurn: true },
                     prejoinPageEnabled: false,
-                    prejoinConfig: {
-                        enabled: false,
-                        hideDisplayName: true
-                    },
-                    
-                    // Start muted to avoid autoplay issues
                     startWithAudioMuted: !hasPermissions,
                     startWithVideoMuted: !hasPermissions,
-                    
-                    // Disable welcome/close pages
+                    disableDeepLinking: true,
                     enableWelcomePage: false,
                     enableClosePage: false,
-                    requireDisplayName: false,
-                    disableDeepLinking: true,
-                    
-                    // Android WebRTC optimizations
-                    disableSimulcast: isAndroid, // Disable for Android stability
-                    p2p: { enabled: !isAndroid }, // Disable P2P on Android
-                    enableLayerSuspension: true,
-                    
-                    // Bandwidth optimizations
-                    videoQuality: {
-                        preferredCodec: 'VP8',
-                        maxBitrateVideo: isAndroid ? 500000 : 1500000,
-                    },
-                    
-                    // Constraints for Android
-                    constraints: {
-                        video: {
-                            height: {
-                                ideal: isAndroid ? 360 : 720,
-                                max: isAndroid ? 720 : 1080,
-                                min: 180
-                            },
-                            frameRate: {
-                                ideal: isAndroid ? 20 : 30,
-                                max: 30
-                            }
-                        }
-                    },
-                    
-                    // Toolbar (simplified for Android)
-                    toolbarButtons: isAndroid ? 
-                        ['microphone', 'camera', 'hangup', 'tileview', 'fullscreen'] :
-                        ['microphone', 'camera', 'desktop', 'hangup', 'tileview', 'fullscreen', 'settings'],
-                    
-                    // Disable features that cause issues
-                    disableChat: true,
-                    disableInviteFunctions: true,
-                    disableRemoteMute: true,
-                    
-                    // Set user info
-                    defaultLocalDisplayName: firstName
+                    toolbarButtons: ['microphone', 'camera', 'hangup', 'tileview', 'fullscreen', 'chat']
                 },
                 interfaceConfigOverwrite: {
-                    // Hide prejoin UI elements
-                    SHOW_PREJOIN_PAGE: false,
-                    SHOW_PREJOIN_SCREEN: false,
-                    SHOW_CHROME_EXTENSION_BANNER: false,
-                    
-                    // Hide watermarks
                     SHOW_JITSI_WATERMARK: false,
                     SHOW_WATERMARK_FOR_GUESTS: false,
-                    SHOW_POWERED_BY: false,
-                    SHOW_BRAND_WATERMARK: false,
-                    
-                    // Mobile optimizations
                     MOBILE_APP_PROMO: false,
-                    VERTICAL_FILMSTRIP: isMobile,
-                    TILE_VIEW_MAX_COLUMNS: isAndroid ? 2 : 4,
-                    
-                    // Toolbar behavior
-                    TOOLBAR_ALWAYS_VISIBLE: false,
-                    INITIAL_TOOLBAR_TIMEOUT: 2000,
-                    TOOLBAR_TIMEOUT: 3000,
-                    
-                    // Simplify interface
-                    SETTINGS_SECTIONS: ['devices'],
-                    DISABLE_VIDEO_BACKGROUND: true,
-                    DISABLE_FOCUS_INDICATOR: isMobile,
-                    
-                    // Display names
-                    DEFAULT_REMOTE_DISPLAY_NAME: '∙∙∙',
-                    DEFAULT_LOCAL_DISPLAY_NAME: firstName.substring(0, 12)
+                    DEFAULT_LOCAL_DISPLAY_NAME: firstName
                 },
-                userInfo: {
-                    displayName: firstName,
-                    email: `${username}@cosmic.uplink`
-                }
+                userInfo: { displayName: firstName }
             };
-            
-            // Create Jitsi instance
+
             try {
                 api = new JitsiMeetExternalAPI(domain, options);
                 setupEventListeners();
-                
-                // Set connection timeout (15 seconds)
                 connectionTimeout = setTimeout(() => {
                     if (!document.getElementById('meet-container').classList.contains('active')) {
-                        showManualOverride();
+                        document.getElementById('manual-override').classList.add('active');
                     }
-                }, 15000);
-                
+                }, 12000);
             } catch (error) {
-                console.error('Jitsi initialization error:', error);
-                handleConnectionError('Initialization failed: ' + error.message);
+                handleConnectionError(error.message);
             }
         }
-        
-        // ======================
-        // EVENT HANDLERS
-        // ======================
+
         function setupEventListeners() {
-            if (!api) return;
-            
-            // SUCCESS: Conference joined
             api.on('videoConferenceJoined', () => {
-                console.log('✓ Conference joined successfully');
                 clearTimeout(connectionTimeout);
                 updateStep(6, 'completed');
-                updateStatus("> CONNECTION SECURE | ENCRYPTED");
-                
-                // Hide loading screen
                 document.getElementById('loading-screen').classList.remove('active');
-                
-                // Show meeting container
                 document.getElementById('meet-container').classList.add('active');
-                
-                // Hide manual override
                 document.getElementById('manual-override').classList.remove('active');
-                
-                // Auto-enable media if permissions were granted
-                if (hasPermissions) {
-                    setTimeout(() => {
-                        try {
-                            // Toggle video to ensure it's on
-                            api.executeCommand('toggleVideo');
-                            // Toggle audio
-                            api.executeCommand('toggleAudio');
-                        } catch (e) {
-                            // Ignore errors
-                        }
-                    }, 1000);
-                }
+                updateStatus("> LINK ESTABLISHED");
             });
-            
-            // Connection established
+
             api.on('connectionEstablished', () => {
-                console.log('✓ WebRTC connection established');
                 updateStep(5, 'completed');
                 updateStep(6, 'active');
-                updateStatus("> AUTHENTICATING...");
             });
-            
-            // Connection failed
-            api.on('connectionFailed', (error) => {
-                console.error('✗ Connection failed:', error);
-                updateStatus("> CONNECTION FAILED");
-                handleConnectionError('WebRTC connection failed');
-            });
-            
-            // Conference failed to join
-            api.on('conferenceFailed', (error) => {
-                console.error('✗ Conference failed:', error);
-                updateStatus("> CONFERENCE FAILED");
-                handleConnectionError('Failed to join conference');
-            });
-            
-            // Participant joined
-            api.on('participantJoined', () => {
-                updateStatus("> USER DETECTED IN CHANNEL");
-            });
-            
-            // Participant left
-            api.on('participantLeft', () => {
-                updateStatus("> USER DISCONNECTED");
-            });
-            
-            // Conference left
-            api.on('videoConferenceLeft', () => {
-                updateStatus("> CONNECTION TERMINATED");
-                setTimeout(() => tg.close(), 2000);
-            });
-            
-            // Error occurred
-            api.on('error', (error) => {
-                console.error('Jitsi error:', error);
-                updateStatus("> SYSTEM ERROR DETECTED");
-            });
-            
-            // Ready to close
-            api.on('readyToClose', () => {
-                tg.close();
-            });
+
+            api.on('readyToClose', () => tg.close());
         }
-        
-        // ======================
-        // MANUAL OVERRIDE SYSTEM
-        // ======================
-        function showManualOverride() {
-            document.getElementById('manual-override').classList.add('active');
-            updateStatus("> CONNECTION TIMEOUT | MANUAL OVERRIDE AVAILABLE");
-        }
-        
+
         function forceJoinMeeting() {
-            updateStatus("> MANUAL JOIN INITIATED...");
-            
-            if (api) {
-                try {
-                    // Try to force join the conference
-                    api.executeCommand('join');
-                    
-                    // Also try to set subject (can help)
-                    api.executeCommand('subject', 'Cosmic Uplink - Manual Join');
-                    
-                    updateStatus("> MANUAL JOIN COMMAND SENT");
-                    
-                    // Hide button after click
-                    setTimeout(() => {
-                        document.getElementById('manual-override').classList.remove('active');
-                    }, 3000);
-                    
-                } catch (error) {
-                    console.error('Manual join failed:', error);
-                    updateStatus("> MANUAL JOIN FAILED");
-                }
-            }
-        }
-        
-        // ======================
-        // ERROR HANDLING
-        // ======================
-        function handleConnectionError(message) {
-            connectionAttempts++;
-            
-            if (connectionAttempts >= MAX_ATTEMPTS) {
-                showError(`Failed after ${MAX_ATTEMPTS} attempts: ${message}`);
-            } else {
-                updateStatus(`> RETRYING (${connectionAttempts}/${MAX_ATTEMPTS})...`);
-                
-                // Clean up previous attempt
-                if (api) {
-                    api.dispose();
-                    api = null;
-                }
-                
-                // Retry after delay
-                setTimeout(() => {
-                    document.getElementById('loading-screen').classList.remove('active');
-                    loadJitsiMeeting();
-                }, 2000);
-            }
-        }
-        
-        function showError(message) {
-            document.getElementById('error-details').textContent = message;
             document.getElementById('loading-screen').classList.remove('active');
+            document.getElementById('meet-container').classList.add('active');
+            document.getElementById('manual-override').classList.remove('active');
+        }
+
+        function handleConnectionError(m) {
+            document.getElementById('error-details').textContent = m;
             document.getElementById('error-screen').classList.add('active');
         }
-        
-        function retryConnection() {
-            document.getElementById('error-screen').classList.remove('active');
-            isConnecting = false;
-            startConnection();
+
+        function updateStatus(t) { document.getElementById('status-text').textContent = t; }
+
+        function updateStep(n, s) {
+            const el = document.getElementById(`step${n}`);
+            if (el) el.className = `step ${s}`;
         }
-        
-        function hardReset() {
-            location.reload();
-        }
-        
-        // ======================
-        // UTILITY FUNCTIONS
-        // ======================
-        function updateStatus(text) {
-            document.getElementById('status-text').textContent = text;
-            console.log(text);
-        }
-        
-        function updateStep(stepNumber, state = '') {
-            const steps = document.querySelectorAll('.step');
-            
-            // Reset all steps
-            steps.forEach(step => {
-                step.className = 'step';
-            });
-            
-            // Set active step
-            if (stepNumber > 0 && stepNumber <= steps.length) {
-                const step = steps[stepNumber - 1];
-                if (state === 'active') {
-                    step.className = 'step active';
-                } else if (state === 'completed') {
-                    step.className = 'step completed';
-                } else if (state === 'error') {
-                    step.className = 'step';
-                    step.style.color = '#f00';
-                }
-            }
-        }
-        
-        // ======================
-        // BROWSER COMPATIBILITY
-        // ======================
-        // Handle Android back button
-        tg.BackButton.onClick(() => {
-            if (api) {
-                api.executeCommand('hangup');
-            }
-            tg.close();
-        });
-        
-        // Handle page visibility
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                updateStatus("> CONNECTION SUSPENDED");
-            } else {
-                updateStatus("> CONNECTION RESTORED");
-            }
-        });
-        
-        // Prevent accidental refresh/close
-        window.addEventListener('beforeunload', (e) => {
-            if (api) {
-                e.preventDefault();
-                e.returnValue = '';
-                api.dispose();
-            }
-        });
-        
-        // Touch/click handler for Android autoplay
-        if (isAndroid) {
-            document.addEventListener('touchstart', () => {
-                // Android needs explicit user interaction
-                console.log('Android touch detected');
-            }, { once: true });
-        }
-        
-        // Auto-cleanup on exit
-        window.addEventListener('unload', () => {
-            if (api) {
-                api.dispose();
-            }
-        });
+
+        function retryConnection() { location.reload(); }
+        function hardReset() { location.href = location.pathname; }
+
+        window.addEventListener('load', init);
     </script>
 </body>
 </html>
