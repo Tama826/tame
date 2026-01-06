@@ -3,1000 +3,693 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Cosmic Uplink v3.0</title>
+    <title>Cosmic Uplink v3.1</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src='https://meet.jit.si/external_api.js'></script>
     <style>
-        /* GLOBAL STYLES */
+        /* RESET & GLOBAL */
         * { 
-            box-sizing: border-box; 
-            -webkit-tap-highlight-color: transparent;
-        }
-        
-        body, html { 
             margin: 0; 
             padding: 0; 
-            height: 100%; 
-            background-color: #000; 
-            overflow: hidden; 
-            font-family: 'Courier New', monospace, -apple-system, BlinkMacSystemFont, sans-serif;
-            user-select: none; 
-            -webkit-user-select: none;
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
         
-        /* MOBILE-OPTIMIZED CONTAINERS */
-        #mobile-optimizer, #meet-container, #boot-screen, #text-hider, #overlay, #touch-controls {
+        body, html { 
+            width: 100%; 
+            height: 100%; 
+            background: #000;
+            overflow: hidden;
+            font-family: 'Courier New', monospace, -apple-system, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        /* MAIN CONTAINERS */
+        #meet-container, #boot-screen, #permission-screen, #loading-screen {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
         }
-
-        /* MOBILE OPTIMIZER (Handles orientation/network) */
-        #mobile-optimizer {
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 800;
+        
+        /* PERMISSION REQUEST SCREEN */
+        #permission-screen {
+            background: #000;
+            z-index: 1100;
             display: none;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 25px;
-            text-align: center;
+            padding: 20px;
             color: #0f0;
-            backdrop-filter: blur(5px);
+            text-align: center;
         }
-
-        #mobile-optimizer.active {
+        
+        #permission-screen.active {
             display: flex;
         }
-
-        .optimizer-icon {
-            font-size: 48px;
+        
+        .permission-icon {
+            font-size: 60px;
             margin-bottom: 20px;
-            filter: drop-shadow(0 0 10px #0f0);
+            animation: pulse 2s infinite;
         }
-
-        /* MAIN CONTAINER */
+        
+        /* LOADING SCREEN */
+        #loading-screen {
+            background: #000;
+            z-index: 1050;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #0f0;
+            text-align: center;
+        }
+        
+        #loading-screen.active {
+            display: flex;
+        }
+        
+        /* BOOT SCREEN */
+        #boot-screen {
+            background: #000;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #0f0;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        /* MEET CONTAINER */
         #meet-container { 
-            opacity: 0; 
-            transition: opacity 1.5s ease-in;
+            opacity: 0;
+            transition: opacity 1s ease;
             filter: sepia(30%) hue-rotate(190deg) contrast(120%) saturate(110%);
-            transform: translateZ(0); /* GPU acceleration */
         }
-
-        /* CRT SCANLINE OVERLAY - Mobile Optimized */
-        #overlay { 
+        
+        #meet-container.active {
+            opacity: 1;
+        }
+        
+        /* OVERLAYS */
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
             background: 
                 linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
                 linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
-            background-size: 100% 4px, 4px 100%; 
-            z-index: 999; 
-            opacity: 0.5; 
+            background-size: 100% 4px, 4px 100%;
+            z-index: 999;
+            opacity: 0.5;
             mix-blend-mode: overlay;
         }
-
-        /* TOUCH-FRIENDLY CONTROLS OVERLAY */
-        #touch-controls {
-            pointer-events: none;
-            z-index: 998;
+        
+        /* STATUS BAR */
+        #status-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 20, 0, 0.8);
+            color: #0f0;
+            padding: 10px 15px;
+            font-size: 12px;
+            z-index: 1001;
             display: flex;
             justify-content: space-between;
-            align-items: flex-end;
-            padding: 20px;
-            padding-bottom: calc(20px + env(safe-area-inset-bottom));
-        }
-
-        .touch-button {
-            pointer-events: auto;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: rgba(0, 20, 0, 0.7);
-            border: 2px solid #0f0;
-            color: #0f0;
-            display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            touch-action: manipulation;
-            -webkit-touch-callout: none;
-            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
             backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 255, 0, 0.2);
         }
-
-        .touch-button:active {
-            transform: scale(0.9);
-            background: rgba(0, 255, 0, 0.3);
-            box-shadow: 0 0 25px rgba(0, 255, 0, 0.5);
-        }
-
-        /* BOOT SCREEN - Mobile Optimized */
-        #boot-screen {
-            background: #000; 
-            z-index: 1000;
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center;
-            color: #0f0; 
-            padding: 25px; 
-            text-align: center;
-            cursor: pointer;
-            padding-bottom: calc(25px + env(safe-area-inset-bottom));
-        }
-
-        /* TEXT HIDER */
-        #text-hider {
-            background: #000; 
-            z-index: 600;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s ease;
-        }
-
+        
         /* TYPOGRAPHY */
-        .blink { 
-            animation: blinker 1.2s ease-in-out infinite; 
+        .glow-text {
+            text-shadow: 0 0 10px #0f0, 0 0 20px #0f0;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
         }
         
-        @keyframes blinker { 
+        .blink {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-        
-        .pulse {
-            animation: pulse 2s ease-in-out infinite;
+            50% { opacity: 0; }
         }
         
         @keyframes pulse {
-            0%, 100% { opacity: 0.7; }
-            50% { opacity: 1; }
-        }
-        
-        .glow-text { 
-            text-shadow: 0 0 8px #0f0, 0 0 16px #0f0; 
-            font-size: clamp(12px, 4vw, 16px); 
-            letter-spacing: 1px; 
-            line-height: 1.6; 
-            max-width: 95%;
-            word-wrap: break-word;
-            font-weight: 400;
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.1); opacity: 1; }
         }
         
         /* BUTTONS */
-        #interaction-trigger { 
-            margin-top: 40px; 
-            border: 1px solid #0f0; 
-            padding: 15px 40px; 
-            text-transform: uppercase; 
-            font-size: clamp(11px, 3.5vw, 14px);
-            background: rgba(0, 255, 0, 0.15);
-            transition: all 0.3s ease;
-            border-radius: 4px;
-            min-height: 50px;
-            min-width: 200px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            touch-action: manipulation;
-            -webkit-touch-callout: none;
-        }
-        
-        #interaction-trigger:active {
-            background: rgba(0, 255, 0, 0.3);
-            box-shadow: 0 0 25px rgba(0, 255, 0, 0.4);
-            transform: scale(0.98);
-        }
-        
-        /* CONNECTION STATUS - Mobile Optimized */
-        #connection-status {
-            position: absolute;
-            bottom: calc(15px + env(safe-area-inset-bottom));
-            left: 50%;
-            transform: translateX(-50%);
+        .cyber-btn {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid #0f0;
             color: #0f0;
-            font-size: clamp(10px, 3vw, 12px);
-            opacity: 0.8;
-            z-index: 1001;
+            padding: 15px 30px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            text-transform: uppercase;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+            min-width: 200px;
             text-align: center;
-            width: 95%;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 8px 15px;
-            border-radius: 20px;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(0, 255, 0, 0.2);
         }
-
-        /* NETWORK QUALITY INDICATOR */
-        #network-quality {
-            position: absolute;
-            top: calc(15px + env(safe-area-inset-top));
-            right: 15px;
-            z-index: 1001;
+        
+        .cyber-btn:hover {
+            background: rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        }
+        
+        .cyber-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .btn-group {
             display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 5px;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px;
         }
-
-        .quality-bar {
-            width: 30px;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 2px;
-            transition: all 0.3s ease;
-        }
-
-        .quality-bar.active {
-            background: #0f0;
-            box-shadow: 0 0 8px #0f0;
-        }
-
-        /* ROOM INFO */
-        #room-info {
-            position: absolute;
-            top: calc(15px + env(safe-area-inset-top));
-            left: 15px;
-            color: rgba(0, 255, 0, 0.4);
-            font-size: clamp(9px, 2.5vw, 11px);
-            z-index: 1001;
-            user-select: text;
-            -webkit-user-select: text;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 5px 10px;
-            border-radius: 10px;
-            max-width: 60%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        /* LOADING SPINNER */
-        .spinner {
+        
+        /* LOADER */
+        .loader {
             width: 40px;
             height: 40px;
             border: 3px solid rgba(0, 255, 0, 0.3);
             border-top: 3px solid #0f0;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 20px auto;
+            margin: 20px;
         }
-
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        /* MOBILE-SPECIFIC MEDIA QUERIES */
-        @media (max-width: 768px) {
-            .touch-button {
-                width: 55px;
-                height: 55px;
-                font-size: 22px;
-            }
-            
-            #interaction-trigger {
-                min-height: 55px;
-                min-width: 180px;
-            }
-            
-            .glow-text {
-                line-height: 1.8;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .touch-button {
-                width: 50px;
-                height: 50px;
-                font-size: 20px;
-            }
-            
-            #interaction-trigger {
-                padding: 12px 30px;
-                min-height: 50px;
-                min-width: 160px;
-            }
-            
-            #connection-status {
-                font-size: 11px;
-                padding: 6px 12px;
-            }
-        }
-
-        /* ORIENTATION SPECIFIC */
-        @media (orientation: landscape) and (max-height: 500px) {
-            #boot-screen {
-                padding: 15px;
-            }
-            
-            .glow-text {
-                font-size: clamp(10px, 3vw, 14px);
-                line-height: 1.4;
-            }
-            
-            #interaction-trigger {
-                margin-top: 20px;
-                padding: 10px 25px;
-                min-height: 45px;
-            }
-            
-            .touch-button {
-                width: 45px;
-                height: 45px;
-                font-size: 18px;
-            }
-        }
-
-        /* DARK MODE SUPPORT */
-        @media (prefers-color-scheme: dark) {
-            #overlay {
-                opacity: 0.4;
-            }
-        }
-
-        /* SAFE AREA INSETS FOR NOTCHED DEVICES */
-        .safe-area-top {
-            padding-top: env(safe-area-inset-top);
+        
+        /* DEBUG INFO (Hidden by default) */
+        #debug-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: rgba(0, 255, 0, 0.3);
+            font-size: 10px;
+            z-index: 1001;
         }
         
-        .safe-area-bottom {
-            padding-bottom: env(safe-area-inset-bottom);
+        /* SAFE AREA ADJUSTMENTS */
+        @supports (padding: max(0px)) {
+            #status-bar {
+                padding-top: max(10px, env(safe-area-inset-top));
+                padding-left: max(15px, env(safe-area-inset-left));
+                padding-right: max(15px, env(safe-area-inset-right));
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Mobile Optimizer Screen -->
-    <div id="mobile-optimizer">
-        <div class="optimizer-icon">📱</div>
-        <div class="glow-text pulse" id="optimizer-message">
-            > OPTIMIZING FOR MOBILE CONNECTION...
-        </div>
-        <div class="spinner"></div>
-        <div class="glow-text" style="margin-top: 20px; font-size: 12px; opacity: 0.7;">
-            Ensure stable network for best experience
-        </div>
+    <!-- Status Bar -->
+    <div id="status-bar">
+        <span id="status-text">> COSMIC UPLINK v3.1</span>
+        <span id="room-display"></span>
     </div>
-
-    <!-- Boot Screen -->
-    <div id="boot-screen" onclick="initializeUplink()">
+    
+    <!-- Permission Screen -->
+    <div id="permission-screen">
+        <div class="permission-icon">🎤📹</div>
         <div class="glow-text">
-            > COSMIC UPLINK v3.0<br>
-            > MOBILE OPTIMIZED<br>
-            > SYSTEM BOOT... OK<br>
-            > ENCRYPTING FEED... OK<br>
-            > BYPASSING FIREWALL... OK<br>
-            > LOADING CHAT PROTOCOL... OK<br>
+            > PERMISSION REQUIRED<br>
+            > CAMERA & MICROPHONE ACCESS<br>
+            > REQUIRED FOR COSMIC UPLINK<br>
             <br>
-            <span class="blink">AWAITING BIOMETRIC INPUT</span>
+            > TAP "ALLOW" WHEN PROMPTED<br>
+            > DO NOT BLOCK PERMISSIONS
         </div>
-        <div id="interaction-trigger">TAP TO CONNECT</div>
-        <div id="room-info"></div>
+        <div class="btn-group">
+            <button class="cyber-btn" onclick="requestPermissions()">GRANT PERMISSIONS</button>
+            <button class="cyber-btn" onclick="skipToCall()">CONTINUE WITHOUT MEDIA</button>
+        </div>
+        <div style="margin-top: 20px; font-size: 12px; opacity: 0.7;">
+            Note: Some browsers require manual permission grant
+        </div>
     </div>
-
-    <!-- Main Containers -->
+    
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loader"></div>
+        <div class="glow-text" id="loading-text">
+            > INITIALIZING COSMIC LINK...
+        </div>
+    </div>
+    
+    <!-- Boot Screen -->
+    <div id="boot-screen">
+        <div class="glow-text">
+            > COSMIC UPLINK v3.1<br>
+            > MOBILE OPTIMIZED<br>
+            > SYSTEM CHECK... OK<br>
+            > ENCRYPTION... READY<br>
+            > FIREWALL BYPASS... ACTIVE<br>
+            <br>
+            <span class="blink">> AWAITING INITIATION</span>
+        </div>
+        <div class="btn-group">
+            <button class="cyber-btn" onclick="startConnection()">INITIATE UPLINK</button>
+        </div>
+        <div style="margin-top: 30px; font-size: 11px; opacity: 0.5;">
+            Auto-start in <span id="countdown">5</span> seconds
+        </div>
+    </div>
+    
+    <!-- Main Container -->
     <div id="meet-container"></div>
-    <div id="text-hider"></div>
     <div id="overlay"></div>
-    
-    <!-- Touch Controls -->
-    <div id="touch-controls">
-        <div class="touch-button" id="toggle-audio" title="Toggle Audio">🎤</div>
-        <div class="touch-button" id="toggle-video" title="Toggle Video">📹</div>
-        <div class="touch-button" id="fullscreen-btn" title="Fullscreen">⛶</div>
-    </div>
-    
-    <!-- Status Indicators -->
-    <div id="connection-status"></div>
-    <div id="network-quality">
-        <div class="quality-bar" id="q1"></div>
-        <div class="quality-bar" id="q2"></div>
-        <div class="quality-bar" id="q3"></div>
-        <div class="quality-bar" id="q4"></div>
-        <div class="quality-bar" id="q5"></div>
-    </div>
+    <div id="debug-info"></div>
 
     <script>
-        // Initialize Telegram Web App
+        // ======================
+        // INITIALIZATION
+        // ======================
         const tg = window.Telegram.WebApp;
         tg.expand();
         tg.BackButton.hide();
         
-        // Detect mobile device
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        // Detect environment
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        
-        // Get user info from Telegram
-        const user = tg.initDataUnsafe?.user;
-        const username = user?.username || `user_${Math.floor(Math.random() * 10000)}`;
-        const firstName = user?.first_name || 'Ghost';
-        
-        // Get room from URL or generate
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomName = urlParams.get('room') || 'COSMIC-' + Math.random().toString(36).substring(2, 8).toUpperCase();
         
         // State variables
         let api = null;
         let connectionAttempts = 0;
-        const maxAttempts = 3;
-        let isAudioMuted = false;
-        let isVideoMuted = false;
-        let networkMonitorInterval = null;
-        let lastNetworkQuality = 5;
+        let hasPermissions = false;
+        let isConnecting = false;
+        let autoStartTimer = null;
+        let countdown = 5;
         
-        // DOM Elements
-        const optimizer = document.getElementById('mobile-optimizer');
-        const optimizerMessage = document.getElementById('optimizer-message');
-        const roomInfo = document.getElementById('room-info');
-        const connectionStatus = document.getElementById('connection-status');
-        const qualityBars = [
-            document.getElementById('q1'),
-            document.getElementById('q2'),
-            document.getElementById('q3'),
-            document.getElementById('q4'),
-            document.getElementById('q5')
-        ];
+        // User info
+        const user = tg.initDataUnsafe?.user;
+        const username = user?.username || `user_${Math.floor(Math.random() * 10000)}`;
+        const firstName = user?.first_name || 'CosmicTraveler';
         
-        // Initialize room info
-        roomInfo.textContent = `ROOM: ${roomName}`;
+        // Room info
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomName = urlParams.get('room') || `COSMIC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        document.getElementById('room-display').textContent = `ROOM: ${roomName}`;
         
-        // Mobile-specific optimizations
-        if (isMobile) {
-            // Request persistent storage for better caching
-            if (navigator.storage && navigator.storage.persist) {
-                navigator.storage.persist().then(persistent => {
-                    if (persistent) {
-                        console.log("Storage will not be cleared automatically by pressure.");
-                    }
-                });
-            }
-            
-            // Prevent zoom on double-tap
-            document.addEventListener('dblclick', e => e.preventDefault());
-            
-            // Handle iOS viewport height
-            if (isIOS) {
-                document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
-                window.addEventListener('resize', () => {
-                    document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
-                });
-            }
-        }
+        // Debug info
+        document.getElementById('debug-info').textContent = 
+            `Mobile: ${isMobile ? 'Yes' : 'No'} | iOS: ${isIOS ? 'Yes' : 'No'} | Safari: ${isSafari ? 'Yes' : 'No'}`;
         
-        // Auto-start timer
-        let autoStartTimer = setTimeout(() => {
-            document.getElementById('interaction-trigger').innerHTML = "> AUTO-CONNECT INITIATED";
-            initializeUplink();
-        }, 5000);
-        
-        // Initialize Cosmic Uplink
-        function initializeUplink() {
-            clearTimeout(autoStartTimer);
-            
-            const bootScreen = document.getElementById('boot-screen');
-            const trigger = document.getElementById('interaction-trigger');
-            
-            trigger.style.display = 'none';
-            
-            // Show mobile optimizer for mobile devices
-            if (isMobile) {
-                showMobileOptimizer();
-                setTimeout(() => {
-                    startJitsiConnection(bootScreen);
-                }, 1500);
-            } else {
-                connectionStatus.textContent = "> ESTABLISHING QUANTUM LINK...";
-                startJitsiConnection(bootScreen);
-            }
-            
-            // Update boot screen with user info
-            document.querySelector('#boot-screen .glow-text').innerHTML = 
-                `> USER IDENTIFIED: ${firstName}<br>` +
-                `> HANDLE: @${username}<br>` +
-                `> CHANNEL: ${roomName}<br>` +
-                `> DEVICE: ${isMobile ? 'MOBILE' : 'DESKTOP'}<br>` +
-                `> ENCRYPTING CONNECTION...<br>` +
-                `> PLEASE STAND BY...`;
-        }
-        
-        // Show mobile optimizer
-        function showMobileOptimizer() {
-            optimizer.classList.add('active');
-            
-            const messages = [
-                "> OPTIMIZING BANDWIDTH...",
-                "> TUNING VIDEO CODEC...",
-                "> ADJUSTING BITRATE...",
-                "> READY FOR CONNECTION..."
-            ];
-            
-            let messageIndex = 0;
-            const messageInterval = setInterval(() => {
-                if (messageIndex < messages.length) {
-                    optimizerMessage.textContent = messages[messageIndex];
-                    messageIndex++;
-                } else {
-                    clearInterval(messageInterval);
-                    optimizer.classList.remove('active');
+        // ======================
+        // COUNTDOWN TIMER
+        // ======================
+        function startCountdown() {
+            const countdownEl = document.getElementById('countdown');
+            autoStartTimer = setInterval(() => {
+                countdown--;
+                countdownEl.textContent = countdown;
+                if (countdown <= 0) {
+                    clearInterval(autoStartTimer);
+                    startConnection();
                 }
-            }, 500);
+            }, 1000);
         }
         
-        // Start Jitsi connection
-        function startJitsiConnection(bootScreenElement) {
-            const domain = 'meet.jit.si';
+        // Start countdown on load
+        window.addEventListener('load', () => {
+            startCountdown();
+        });
+        
+        // ======================
+        // START CONNECTION FLOW
+        // ======================
+        function startConnection() {
+            clearInterval(autoStartTimer);
             
-            // Generate avatar color
-            const colors = ['#0f0', '#00ffff', '#ff00ff', '#ffff00', '#00ff80'];
-            const avatarColor = colors[username.length % colors.length];
+            if (isConnecting) return;
+            isConnecting = true;
             
-            // Mobile-specific configuration
-            const mobileConfig = isMobile ? {
-                resolution: isIOS ? 360 : 480, // Lower resolution for mobile
-                maxBitrateVideo: 500000, // Reduced bitrate for mobile
-                startBitrate: 300000,
-                disableSimulcast: false,
-                enableLayerSuspension: true,
-                stereo: false,
-                opusMaxAverageBitrate: 20000,
-                constraints: {
+            document.getElementById('status-text').textContent = "> INITIATING CONNECTION...";
+            
+            // Show permission screen first
+            showPermissionScreen();
+        }
+        
+        // ======================
+        // PERMISSION HANDLING
+        // ======================
+        function showPermissionScreen() {
+            document.getElementById('boot-screen').style.display = 'none';
+            document.getElementById('permission-screen').classList.add('active');
+        }
+        
+        async function requestPermissions() {
+            document.getElementById('status-text').textContent = "> REQUESTING PERMISSIONS...";
+            
+            try {
+                // Request camera permission first (most restrictive)
+                const cameraStream = await navigator.mediaDevices.getUserMedia({ 
                     video: {
-                        height: {
-                            ideal: isIOS ? 360 : 480,
-                            max: isIOS ? 720 : 1080,
-                            min: 180
-                        }
-                    }
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 24 }
+                    },
+                    audio: false 
+                });
+                
+                // Stop camera stream immediately (we just wanted permission)
+                cameraStream.getTracks().forEach(track => track.stop());
+                
+                // Request microphone
+                const micStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    },
+                    video: false 
+                });
+                
+                // Stop mic stream
+                micStream.getTracks().forEach(track => track.stop());
+                
+                hasPermissions = true;
+                document.getElementById('status-text').textContent = "> PERMISSIONS GRANTED";
+                
+                // Proceed to load Jitsi
+                setTimeout(() => {
+                    document.getElementById('permission-screen').classList.remove('active');
+                    loadJitsiMeeting();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Permission error:', error);
+                
+                // Handle specific errors
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    document.getElementById('status-text').textContent = "> PERMISSION DENIED";
+                    alert("Please allow camera and microphone access in your browser settings, then refresh the page.");
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                    document.getElementById('status-text').textContent = "> NO DEVICES FOUND";
+                    alert("No camera or microphone found. Please connect a device.");
+                } else {
+                    document.getElementById('status-text').textContent = "> PERMISSION ERROR";
                 }
-            } : {};
+                
+                // Still try to load without permissions
+                setTimeout(() => {
+                    document.getElementById('permission-screen').classList.remove('active');
+                    loadJitsiMeeting();
+                }, 1000);
+            }
+        }
+        
+        function skipToCall() {
+            document.getElementById('status-text').textContent = "> SKIPPING PERMISSIONS...";
+            document.getElementById('permission-screen').classList.remove('active');
+            hasPermissions = false;
+            setTimeout(loadJitsiMeeting, 500);
+        }
+        
+        // ======================
+        // JITSI LOADING
+        // ======================
+        function loadJitsiMeeting() {
+            document.getElementById('loading-screen').classList.add('active');
+            document.getElementById('loading-text').textContent = "> LOADING COSMIC INTERFACE...";
             
+            // Wait a moment for DOM updates
+            setTimeout(() => {
+                initializeJitsi();
+            }, 1000);
+        }
+        
+        function initializeJitsi() {
+            document.getElementById('loading-text').textContent = "> CONNECTING TO SERVER...";
+            
+            // Jitsi configuration with mobile optimizations
+            const domain = 'meet.jit.si';
             const options = {
                 roomName: roomName,
                 width: '100%',
                 height: '100%',
                 parentNode: document.querySelector('#meet-container'),
                 configOverwrite: {
+                    // Critical: Disable prejoin page to avoid permission loops
                     prejoinPageEnabled: false,
-                    startWithAudioMuted: false,
-                    startWithVideoMuted: false,
                     disableDeepLinking: true,
                     requireDisplayName: false,
                     enableWelcomePage: false,
-                    disableProfile: true,
                     enableClosePage: false,
-                    disableInviteFunctions: true,
-                    disableRemoteMute: true,
-                    enableNoAudioDetection: false,
-                    enableNoisyMicDetection: false,
-                    hideLobbyButton: true,
                     
-                    // Mobile optimizations
-                    ...mobileConfig,
+                    // Start muted to avoid permission issues
+                    startWithAudioMuted: !hasPermissions,
+                    startWithVideoMuted: !hasPermissions,
                     
-                    // Toolbar configuration
-                    toolbarButtons: isMobile ? 
-                        ['hangup', 'microphone', 'camera', 'fullscreen'] : 
-                        ['hangup', 'microphone', 'camera', 'tileview', 'fullscreen'],
+                    // Optimize for mobile
+                    resolution: isMobile ? 360 : 720,
+                    constraints: {
+                        video: {
+                            height: {
+                                ideal: isMobile ? 360 : 720,
+                                max: isMobile ? 720 : 1080,
+                                min: 180
+                            }
+                        }
+                    },
+                    
+                    // Disable features that cause permission prompts
+                    disableSimulcast: isMobile,
+                    enableLayerSuspension: true,
+                    p2p: { enabled: false }, // Disable P2P for better reliability
+                    
+                    // Toolbar settings
+                    toolbarButtons: [
+                        'microphone', 'camera', 'desktop', 'fullscreen',
+                        'hangup', 'settings', 'videoquality', 'filmstrip'
+                    ],
                     
                     // Disable chat completely
                     disableChat: true,
-                    disablePrivateChat: true,
-                    hiddenPremeetingButtons: ['microphone', 'camera', 'select-background', 'invite', 'settings'],
+                    disableInviteFunctions: true,
                     
-                    // Avatar settings
-                    defaultLocalDisplayName: firstName,
-                    defaultRemoteDisplayName: 'User',
-                    enableDisplayNameInStats: false,
-                    
-                    // Connection settings
-                    p2p: { enabled: isMobile ? false : true }, // Disable P2P on mobile for better reliability
-                    enableLayerSuspension: true,
-                    startSilent: false,
-                    disabledSounds: ['RECORDING_ON_SOUND', 'RECORDING_OFF_SOUND'],
-                    
-                    // Bandwidth optimizations
-                    enableRemb: true,
-                    enableTcc: true,
-                    videoQuality: {
-                        preferredCodec: 'VP8',
-                        maxBitrateVideo: isMobile ? 500000 : 1500000,
-                        minHeightForQualityLvl: {
-                            360: 720,
-                            720: 1080
-                        }
-                    }
+                    // Set user info
+                    defaultLocalDisplayName: firstName
                 },
                 interfaceConfigOverwrite: {
-                    // Hide everything
+                    // Hide unnecessary elements
                     SHOW_JITSI_WATERMARK: false,
                     SHOW_WATERMARK_FOR_GUESTS: false,
                     SHOW_POWERED_BY: false,
-                    SHOW_PROMOTIONAL_CLOSE_PAGE: false,
-                    SHOW_BRAND_WATERMARK: false,
-                    SHOW_DEEP_LINKING_IMAGE: false,
                     
-                    // Mobile-optimized toolbar
-                    TOOLBAR_ALWAYS_VISIBLE: false,
-                    INITIAL_TOOLBAR_TIMEOUT: isMobile ? 1000 : 2000,
-                    TOOLBAR_TIMEOUT: isMobile ? 1500 : 3000,
-                    filmStripOnly: isMobile,
-                    
-                    // Optimize for mobile screens
-                    VERTICAL_FILMSTRIP: isMobile,
-                    TILE_VIEW_MAX_COLUMNS: isMobile ? 3 : 5,
+                    // Mobile optimizations
                     MOBILE_APP_PROMO: false,
-                    MAXIMUM_ZOOMING_COEFFICIENT: 1.0,
+                    VERTICAL_FILMSTRIP: isMobile,
+                    TILE_VIEW_MAX_COLUMNS: isMobile ? 2 : 4,
                     
-                    // Disable chat interface
+                    // Simplify interface
+                    TOOLBAR_ALWAYS_VISIBLE: false,
+                    SETTINGS_SECTIONS: ['devices', 'language'],
+                    
+                    // Disable features
                     DISABLE_VIDEO_BACKGROUND: true,
                     DISABLE_FOCUS_INDICATOR: isMobile,
-                    DISABLE_DOMINANT_SPEAKER_INDICATOR: isMobile,
-                    DISABLE_TRANSCRIPTION_SUBTITLES: true,
-                    DISABLE_RINGING: true,
                     
-                    // Hide participant names on mobile
-                    DEFAULT_REMOTE_DISPLAY_NAME: isMobile ? '∙∙∙' : 'User',
-                    DEFAULT_LOCAL_DISPLAY_NAME: firstName,
-                    
-                    // Optimize filmstrip
-                    FILM_STRIP_MAX_HEIGHT: isMobile ? 90 : 120,
-                    
-                    // Custom avatar
-                    GENERATE_ROOMNAMES_ON_WELCOME_PAGE: false,
-                    AVATAR_COLOR: avatarColor,
+                    // Avatar settings
+                    DEFAULT_REMOTE_DISPLAY_NAME: '∙∙∙',
+                    DEFAULT_LOCAL_DISPLAY_NAME: firstName
                 },
-                userInfo: { 
+                userInfo: {
                     displayName: firstName,
                     email: `${username}@cosmic.uplink`
+                },
+                onload: function() {
+                    console.log('Jitsi Meet API loaded');
+                    document.getElementById('loading-text').textContent = "> API LOADED, STARTING...";
                 }
             };
             
-            // Initialize API
-            api = new JitsiMeetExternalAPI(domain, options);
-            
-            // Hide text inputs
-            const textHider = document.getElementById('text-hider');
-            textHider.style.opacity = '1';
-            
-            // Inject custom CSS for mobile optimization
-            setTimeout(() => {
-                const iframe = document.querySelector('#meet-container iframe');
-                if (iframe && iframe.contentWindow) {
-                    try {
-                        const style = document.createElement('style');
-                        style.textContent = `
-                            /* Mobile-optimized Jitsi styles */
-                            body {
-                                -webkit-font-smoothing: antialiased;
-                                text-size-adjust: 100%;
-                            }
-                            
-                            /* Hide all text inputs and chat */
-                            input, textarea, .chat-container, [class*="chat"], [id*="chat"] {
-                                display: none !important;
-                                visibility: hidden !important;
-                                opacity: 0 !important;
-                                position: absolute !important;
-                                pointer-events: none !important;
-                            }
-                            
-                            /* Mobile-optimized toolbar */
-                            .new-toolbox, .toolbox-content {
-                                background: rgba(0, 0, 0, 0.7) !important;
-                                backdrop-filter: blur(10px) !important;
-                                border-radius: 25px !important;
-                                padding: 5px !important;
-                                margin: 10px !important;
-                            }
-                            
-                            .toolbox-button {
-                                min-width: 44px !important;
-                                min-height: 44px !important;
-                                margin: 0 5px !important;
-                            }
-                            
-                            /* Optimize filmstrip for mobile */
-                            .filmstrip {
-                                max-width: ${isMobile ? '100px' : '200px'} !important;
-                            }
-                            
-                            /* Improve touch targets */
-                            button, .clickable {
-                                min-height: 44px !important;
-                                min-width: 44px !important;
-                            }
-                            
-                            /* Optimize video quality */
-                            video {
-                                object-fit: cover !important;
-                            }
-                            
-                            /* Hide unnecessary elements on mobile */
-                            ${isMobile ? `
-                                .watermark, .subject, .connection-info {
-                                    display: none !important;
-                                }
-                                .dominant-speaker {
-                                    border-width: 2px !important;
-                                }
-                            ` : ''}
-                        `;
-                        iframe.contentDocument.head.appendChild(style);
-                    } catch (e) {
-                        console.log("Style injection:", e.message);
-                    }
-                }
+            // Create Jitsi instance
+            try {
+                api = new JitsiMeetExternalAPI(domain, options);
+                setupEventListeners();
+            } catch (error) {
+                console.error('Jitsi initialization error:', error);
+                document.getElementById('loading-text').textContent = "> INITIALIZATION FAILED";
                 
-                // Fade out text hider
+                // Try again with simpler config
                 setTimeout(() => {
-                    textHider.style.opacity = '0';
-                    setTimeout(() => {
-                        textHider.style.display = 'none';
-                    }, 500);
+                    if (connectionAttempts < 2) {
+                        connectionAttempts++;
+                        document.getElementById('loading-text').textContent = `> RETRYING (${connectionAttempts}/2)...`;
+                        initializeJitsi();
+                    } else {
+                        document.getElementById('loading-text').textContent = "> FAILED TO LOAD";
+                        alert("Could not load video call. Please refresh the page.");
+                    }
+                }, 2000);
+            }
+        }
+        
+        // ======================
+        // EVENT HANDLERS
+        // ======================
+        function setupEventListeners() {
+            if (!api) return;
+            
+            // Main event: Conference joined
+            api.on('videoConferenceJoined', () => {
+                console.log('Conference joined');
+                document.getElementById('status-text').textContent = "> CONNECTION SECURE";
+                
+                // Hide loading screen
+                document.getElementById('loading-screen').classList.remove('active');
+                
+                // Show meeting container
+                document.getElementById('meet-container').classList.add('active');
+                
+                // Update status
+                setTimeout(() => {
+                    document.getElementById('status-text').textContent = "> COSMIC UPLINK ACTIVE";
                 }, 1000);
-            }, 500);
-            
-            // Set up touch controls
-            setupTouchControls();
-            
-            // Start network monitoring
-            startNetworkMonitoring();
-            
-            // Event listeners
-            api.addEventListeners({
-                videoConferenceJoined: function() {
-                    console.log("Cosmic link established on", isMobile ? "mobile" : "desktop");
-                    connectionStatus.textContent = "> CONNECTION SECURE | ENCRYPTED";
-                    
-                    // Hide boot screen
-                    bootScreenElement.style.transition = "opacity 1s ease";
-                    bootScreenElement.style.opacity = "0";
-                    
-                    // Show video with fade
-                    setTimeout(() => {
-                        document.getElementById('meet-container').style.opacity = "1";
-                        bootScreenElement.style.display = 'none';
-                        
-                        // Show touch controls on mobile
-                        if (isMobile) {
-                            document.getElementById('touch-controls').style.opacity = "1";
-                        }
-                    }, 800);
-                    
-                    // Send encrypted join message
+                
+                // Force show video if permissions were granted
+                if (hasPermissions) {
                     setTimeout(() => {
                         try {
-                            api.executeCommand('sendChatMessage', 
-                                `User ${firstName} has joined the cosmic uplink. Connection encrypted. Device: ${isMobile ? 'Mobile' : 'Desktop'}`
-                            );
-                        } catch(e) {
-                            // Chat disabled - expected
+                            api.executeCommand('toggleVideo');
+                            setTimeout(() => api.executeCommand('toggleVideo'), 100);
+                        } catch (e) {
+                            // Ignore errors
                         }
-                    }, 2000);
-                    
-                    // Continuously hide text inputs
-                    setInterval(hideTextInputs, 2000);
-                },
-                
-                participantJoined: function() {
-                    connectionStatus.textContent = `> USER DETECTED | CONNECTION ACTIVE`;
-                    updateNetworkQuality(5); // Best quality when user joins
-                    
-                    setTimeout(() => {
-                        connectionStatus.textContent = `> ENCRYPTED CHANNEL: ${roomName}`;
-                    }, 3000);
-                },
-                
-                participantLeft: function() {
-                    connectionStatus.textContent = "> USER DISCONNECTED | AWAITING RE-CONNECTION";
-                    updateNetworkQuality(2); // Lower quality when alone
-                },
-                
-                videoConferenceLeft: function() {
-                    connectionStatus.textContent = "> CONNECTION TERMINATED";
-                    stopNetworkMonitoring();
-                    
-                    setTimeout(() => {
-                        tg.close();
-                    }, 2000);
-                },
-                
-                readyToClose: function() {
-                    tg.close();
+                    }, 500);
                 }
             });
             
-            // Connection status events
+            // Connection established
             api.on('connectionEstablished', () => {
-                connectionAttempts = 0;
-                connectionStatus.textContent = "> QUANTUM LINK ACTIVE";
-                updateNetworkQuality(5);
+                console.log('Connection established');
+                document.getElementById('loading-text').textContent = "> AUTHENTICATING...";
             });
             
-            api.on('connectionFailed', () => {
-                connectionAttempts++;
-                connectionStatus.textContent = `> CONNECTION FAILED (Attempt ${connectionAttempts}/${maxAttempts})`;
-                updateNetworkQuality(1);
+            // Participant joined
+            api.on('participantJoined', () => {
+                document.getElementById('status-text').textContent = "> USER DETECTED";
+            });
+            
+            // Participant left
+            api.on('participantLeft', () => {
+                document.getElementById('status-text').textContent = "> USER DISCONNECTED";
+            });
+            
+            // Conference left
+            api.on('videoConferenceLeft', () => {
+                document.getElementById('status-text').textContent = "> CONNECTION TERMINATED";
+                setTimeout(() => tg.close(), 2000);
+            });
+            
+            // Ready to close
+            api.on('readyToClose', () => {
+                tg.close();
+            });
+            
+            // Error handling
+            api.on('error', (error) => {
+                console.error('Jitsi error:', error);
+                document.getElementById('loading-text').textContent = "> ERROR DETECTED";
                 
-                if (connectionAttempts < maxAttempts) {
-                    setTimeout(() => {
-                        connectionStatus.textContent = "> RE-ESTABLISHING LINK...";
+                // Try to recover
+                setTimeout(() => {
+                    if (api) {
                         api.dispose();
-                        startJitsiConnection(bootScreenElement);
-                    }, 2000);
-                } else {
-                    connectionStatus.textContent = "> CRITICAL FAILURE | REBOOT REQUIRED";
+                        api = null;
+                    }
+                    loadJitsiMeeting();
+                }, 3000);
+            });
+            
+            // Check if conference doesn't start within 10 seconds
+            setTimeout(() => {
+                const meetContainer = document.getElementById('meet-container');
+                if (!meetContainer.classList.contains('active')) {
+                    console.log('Forcing conference start...');
+                    document.getElementById('loading-screen').classList.remove('active');
+                    meetContainer.classList.add('active');
+                    document.getElementById('status-text').textContent = "> MANUAL OVERRIDE ACTIVE";
+                    
+                    // Try to join again
                     setTimeout(() => {
-                        location.reload();
-                    }, 3000);
+                        if (api) {
+                            try {
+                                api.executeCommand('subject', 'Cosmic Uplink');
+                            } catch (e) {
+                                // Ignore
+                            }
+                        }
+                    }, 1000);
                 }
-            });
-            
-            // Track connection quality
-            api.on('connectionQualityChanged', (quality) => {
-                if (quality && quality.connectionQuality) {
-                    const qualityLevel = Math.min(5, Math.ceil(quality.connectionQuality * 5));
-                    updateNetworkQuality(qualityLevel);
-                }
-            });
+            }, 10000);
         }
         
-        // Set up touch controls
-        function setupTouchControls() {
-            document.getElementById('toggle-audio').addEventListener('click', () => {
-                if (api) {
-                    api.executeCommand('toggleAudio');
-                    isAudioMuted = !isAudioMuted;
-                    document.getElementById('toggle-audio').innerHTML = isAudioMuted ? '🔇' : '🎤';
-                    connectionStatus.textContent = isAudioMuted ? 
-                        "> AUDIO MUTED" : "> AUDIO ACTIVE";
+        // ======================
+        // BROWSER COMPATIBILITY
+        // ======================
+        
+        // Handle browser-specific issues
+        if (isIOS) {
+            // iOS Safari needs special handling
+            document.addEventListener('touchstart', () => {
+                // iOS requires user interaction before playing video
+                if (api && !hasPermissions) {
+                    setTimeout(() => {
+                        try {
+                            api.executeCommand('toggleAudio');
+                            api.executeCommand('toggleVideo');
+                        } catch (e) {
+                            // Ignore errors
+                        }
+                    }, 1000);
                 }
-            });
-            
-            document.getElementById('toggle-video').addEventListener('click', () => {
-                if (api) {
-                    api.executeCommand('toggleVideo');
-                    isVideoMuted = !isVideoMuted;
-                    document.getElementById('toggle-video').innerHTML = isVideoMuted ? '📵' : '📹';
-                    connectionStatus.textContent = isVideoMuted ? 
-                        "> VIDEO DISABLED" : "> VIDEO ACTIVE";
-                }
-            });
-            
-            document.getElementById('fullscreen-btn').addEventListener('click', () => {
-                const elem = document.documentElement;
-                if (!document.fullscreenElement) {
-                    if (elem.requestFullscreen) {
-                        elem.requestFullscreen();
-                    } else if (elem.webkitRequestFullscreen) {
-                        elem.webkitRequestFullscreen();
-                    } else if (elem.msRequestFullscreen) {
-                        elem.msRequestFullscreen();
-                    }
-                } else {
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    } else if (document.webkitExitFullscreen) {
-                        document.webkitExitFullscreen();
-                    } else if (document.msExitFullscreen) {
-                        document.msExitFullscreen();
-                    }
-                }
-            });
-            
-            // Hide touch controls on desktop
-            if (!isMobile) {
-                document.getElementById('touch-controls').style.display = 'none';
-            }
+            }, { once: true });
         }
         
-        // Network monitoring
-        function startNetworkMonitoring() {
-            if (networkMonitorInterval) clearInterval(networkMonitorInterval);
-            
-            networkMonitorInterval = setInterval(() => {
-                if (navigator.connection) {
-                    const connection = navigator.connection;
-                    const downlink = connection.downlink || 5;
-                    const effectiveType = connection.effectiveType || '4g';
-                    
-                    let quality = 5;
-                    if (effectiveType === 'slow-2g') quality = 1;
-                    else if (effectiveType === '2g') quality = 2;
-                    else if (effectiveType === '3g') quality = 3;
-                    else if (effectiveType === '4g') quality = downlink > 2 ? 5 : 4;
-                    
-                    updateNetworkQuality(quality);
-                    
-                    // Update status if quality is poor
-                    if (quality < 3) {
-                        connectionStatus.textContent = `> NETWORK QUALITY: ${effectiveType.toUpperCase()} | ADJUSTING...`;
-                    }
-                }
-            }, 5000);
-        }
-        
-        function stopNetworkMonitoring() {
-            if (networkMonitorInterval) {
-                clearInterval(networkMonitorInterval);
-                networkMonitorInterval = null;
-            }
-        }
-        
-        function updateNetworkQuality(level) {
-            lastNetworkQuality = level;
-            qualityBars.forEach((bar, index) => {
-                if (index < level) {
-                    bar.classList.add('active');
-                } else {
-                    bar.classList.remove('active');
-                }
-            });
-        }
-        
-        // Hide text inputs function
-        function hideTextInputs() {
-            const iframe = document.querySelector('#meet-container iframe');
-            if (iframe && iframe.contentDocument) {
-                const inputs = iframe.contentDocument.querySelectorAll(
-                    'input, textarea, [contenteditable="true"], [role="textbox"]'
-                );
-                inputs.forEach(input => {
-                    input.style.display = 'none';
-                    input.style.visibility = 'hidden';
-                    input.style.opacity = '0';
-                    input.style.position = 'absolute';
-                    input.style.pointerEvents = 'none';
-                    input.setAttribute('tabindex', '-1');
-                });
-            }
-        }
-        
-        // Handle orientation changes
-        let orientationTimer;
-        window.addEventListener('orientationchange', () => {
-            connectionStatus.textContent = "> ORIENTATION CHANGE DETECTED...";
-            
-            clearTimeout(orientationTimer);
-            orientationTimer = setTimeout(() => {
-                connectionStatus.textContent = `> ENCRYPTED CHANNEL: ${roomName}`;
-                
-                // Refresh interface on mobile orientation change
-                if (isMobile && api) {
-                    setTimeout(hideTextInputs, 500);
-                }
-            }, 1000);
-        });
-        
-        // Handle page visibility
+        // Handle page visibility changes
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                connectionStatus.textContent = "> CONNECTION SUSPENDED";
-                updateNetworkQuality(1);
+                document.getElementById('status-text').textContent = "> CONNECTION SUSPENDED";
             } else {
-                connectionStatus.textContent = "> CONNECTION RESTORED";
-                updateNetworkQuality(lastNetworkQuality);
-                
-                // Refresh interface when coming back
-                setTimeout(hideTextInputs, 100);
+                document.getElementById('status-text').textContent = "> CONNECTION RESTORED";
             }
         });
         
-        // Prevent accidental closing
+        // Handle beforeunload
         window.addEventListener('beforeunload', (e) => {
             if (api) {
                 e.preventDefault();
-                e.returnValue = 'Are you sure you want to disconnect from the cosmic uplink?';
+                e.returnValue = '';
+                api.dispose();
             }
         });
         
-        // Handle back button on mobile
+        // Telegram back button
         tg.BackButton.onClick(() => {
             if (api) {
                 api.executeCommand('hangup');
@@ -1004,14 +697,33 @@
             tg.close();
         });
         
-        // Initial hide of touch controls
-        document.getElementById('touch-controls').style.opacity = "0";
+        // Force start if nothing happens in 30 seconds
+        setTimeout(() => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const meetContainer = document.getElementById('meet-container');
+            
+            if (loadingScreen.classList.contains('active')) {
+                loadingScreen.classList.remove('active');
+                meetContainer.classList.add('active');
+                document.getElementById('status-text').textContent = "> AUTOMATIC START";
+                
+                // Try to inject manual start
+                if (api) {
+                    try {
+                        api.executeCommand('subject', 'Cosmic Uplink - Auto Start');
+                    } catch (e) {
+                        console.log('Auto start command failed');
+                    }
+                }
+            }
+        }, 30000);
         
-        // Pre-load network info
-        if (isMobile && navigator.connection) {
-            const conn = navigator.connection;
-            console.log(`Network: ${conn.effectiveType}, Downlink: ${conn.downlink}Mbps`);
-        }
+        // Debug: Log all Jitsi events
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type) {
+                console.log('Jitsi message:', event.data.type);
+            }
+        });
     </script>
 </body>
 </html>
