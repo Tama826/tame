@@ -9,36 +9,51 @@
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background-color: #000; overflow: hidden; font-family: 'Courier New', monospace; user-select: none; -webkit-user-select: none; }
         
-        /* THE CONTAINER - Hidden (opacity 0) until ready */
+        /* THE CONTAINER */
         #meet-container { 
             width: 100%; height: 100%; 
             opacity: 0; 
-            transition: opacity 2s ease-in; /* Slow fade in for drama */
+            transition: opacity 2s ease-in;
             filter: sepia(30%) hue-rotate(190deg) contrast(120%) saturate(110%);
         }
 
-        /* CRT SCANLINE OVERLAY - Always on top */
-        #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+        /* CRT SCANLINE OVERLAY */
+        #overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
             background-size: 100% 3px, 3px 100%; z-index: 999; opacity: 0.6; mix-blend-mode: overlay;
         }
 
-        /* THE BOOT SCREEN (Covers the ugly loading) */
+        /* BOOT SCREEN */
         #boot-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 500;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
             color: #0f0; padding: 20px; text-align: center;
-            cursor: pointer; /* Hints that it's clickable */
+            cursor: pointer;
         }
 
-        /* Pulsing Text */
+        /* TEXT HIDER OVERLAY - New element to hide text inputs */
+        #text-hider {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 600; /* Above Jitsi but below boot screen */
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
         .blink { animation: blinker 1s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
         
-        .glow-text { text-shadow: 0 0 10px #0f0, 0 0 20px #0f0; font-size: 14px; letter-spacing: 2px; line-height: 1.5; }
+        .glow-text { 
+            text-shadow: 0 0 10px #0f0, 0 0 20px #0f0; 
+            font-size: 14px; 
+            letter-spacing: 2px; 
+            line-height: 1.5; 
+            max-width: 90%;
+            word-wrap: break-word;
+        }
         
-        /* The "Tap" hint is subtle */
         #interaction-trigger { 
             margin-top: 30px; 
             border: 1px solid #0f0; 
@@ -46,6 +61,38 @@
             text-transform: uppercase; 
             font-size: 12px;
             background: rgba(0, 255, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        #interaction-trigger:hover {
+            background: rgba(0, 255, 0, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+        
+        /* Connection status indicator */
+        #connection-status {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #0f0;
+            font-size: 11px;
+            opacity: 0.7;
+            z-index: 1000;
+            text-align: center;
+            width: 100%;
+        }
+
+        /* Hidden room info */
+        #room-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: rgba(0, 255, 0, 0.3);
+            font-size: 10px;
+            z-index: 1000;
+            user-select: text;
+            -webkit-user-select: text;
         }
 
     </style>
@@ -54,94 +101,334 @@
 
     <div id="boot-screen" onclick="initializeUplink()">
         <div class="glow-text">
+            > COSMIC UPLINK v2.1<br>
             > SYSTEM BOOT... OK<br>
             > ENCRYPTING FEED... OK<br>
             > BYPASSING FIREWALL... OK<br>
+            > LOADING CHAT PROTOCOL... OK<br>
             <br>
             <span class="blink">AWAITING BIOMETRIC INPUT</span>
         </div>
-        <div id="interaction-trigger">TAP SCREEN TO ENGAGE</div>
+        <div id="interaction-trigger">TAP TO CONNECT</div>
+        <div id="room-info" style="display:none;"></div>
     </div>
 
     <div id="meet-container"></div>
-    
+    <div id="text-hider"></div>
     <div id="overlay"></div>
+    <div id="connection-status"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
+        tg.BackButton.hide();
 
+        // Get user info from Telegram
+        const user = tg.initDataUnsafe?.user;
+        const username = user?.username || `user_${Math.floor(Math.random() * 10000)}`;
+        const firstName = user?.first_name || 'Ghost';
+        
         const urlParams = new URLSearchParams(window.location.search);
-        const roomName = urlParams.get('room') || 'COSMIC-UPLINK-' + Math.random().toString(36).substring(7);
+        const roomName = urlParams.get('room') || 'COSMIC-' + Math.random().toString(36).substring(2, 8).toUpperCase();
         let api = null;
+        let connectionAttempts = 0;
+        const maxAttempts = 3;
 
-        // ==== THE MAGIC FUNCTION ====
+        // Show room info
+        document.getElementById('room-info').textContent = `ROOM: ${roomName}`;
+        document.getElementById('room-info').style.display = 'block';
+
+        // Auto-start after 5 seconds if no interaction
+        let autoStartTimer = setTimeout(() => {
+            document.getElementById('interaction-trigger').innerHTML = "> AUTO-CONNECT INITIATED";
+            initializeUplink();
+        }, 5000);
+
         function initializeUplink() {
-            // 1. Change text to show we are working
+            clearTimeout(autoStartTimer);
+            
             const bootScreen = document.getElementById('boot-screen');
             const trigger = document.getElementById('interaction-trigger');
+            const status = document.getElementById('connection-status');
             
-            trigger.style.display = 'none'; // Hide the button immediately
-            document.querySelector('.glow-text').innerHTML = "> ESTABLISHING VIDEO LINK...<br>> PLEASE STAND BY...";
-
-            // 2. Start Jitsi immediately
-            startJitsi(bootScreen);
+            trigger.style.display = 'none';
+            status.textContent = "> ESTABLISHING QUANTUM LINK...";
+            
+            // Update boot screen text with user info
+            document.querySelector('.glow-text').innerHTML = 
+                `> USER IDENTIFIED: ${firstName}<br>` +
+                `> HANDLE: @${username}<br>` +
+                `> CHANNEL: ${roomName}<br>` +
+                `> ENCRYPTING CONNECTION...<br>` +
+                `> PLEASE STAND BY...`;
+            
+            // Start connection
+            startJitsi(bootScreen, status);
         }
 
-        function startJitsi(bootScreenElement) {
+        function startJitsi(bootScreenElement, statusElement) {
             const domain = 'meet.jit.si';
+            
+            // Generate random avatar color based on username
+            const colors = ['#0f0', '#00ffff', '#ff00ff', '#ffff00', '#00ff80'];
+            const avatarColor = colors[username.length % colors.length];
+            
             const options = {
                 roomName: roomName,
                 width: '100%',
                 height: '100%',
                 parentNode: document.querySelector('#meet-container'),
                 configOverwrite: {
-                    prejoinPageEnabled: false,      // KILL THE LOBBY
-                    startWithAudioMuted: false,     // AUDIO ON
-                    startWithVideoMuted: false,     // VIDEO ON
-                    disableDeepLinking: true,       // NO APP PROMPTS
+                    prejoinPageEnabled: false,
+                    startWithAudioMuted: false,
+                    startWithVideoMuted: false,
+                    disableDeepLinking: true,
                     requireDisplayName: false,
-                    // REMOVE ALL BUTTONS for pure view
-                    toolbarButtons: ['hangup', 'microphone', 'camera', 'tileview'], 
+                    enableWelcomePage: false,
+                    disableProfile: true,
+                    enableClosePage: false,
+                    disableInviteFunctions: true,
+                    disableRemoteMute: true,
+                    enableNoAudioDetection: false,
+                    enableNoisyMicDetection: false,
+                    hideLobbyButton: true,
+                    
+                    // Hide chat completely
+                    toolbarButtons: ['hangup', 'microphone', 'camera', 'tileview', 'fullscreen'],
+                    
+                    // Disable all text inputs
+                    disableChat: true,
+                    disablePrivateChat: true,
+                    hiddenPremeetingButtons: ['microphone', 'camera', 'select-background', 'invite', 'settings'],
+                    
+                    // Avatar settings
+                    defaultLocalDisplayName: firstName,
+                    defaultRemoteDisplayName: 'User',
+                    enableDisplayNameInStats: false,
+                    
+                    // Connection optimization
+                    p2p: { enabled: false },
+                    enableLayerSuspension: true,
+                    startSilent: false,
                 },
                 interfaceConfigOverwrite: {
-                    // Hide everything possible
+                    // Hide everything
                     SHOW_JITSI_WATERMARK: false,
                     SHOW_WATERMARK_FOR_GUESTS: false,
+                    SHOW_POWERED_BY: false,
+                    SHOW_PROMOTIONAL_CLOSE_PAGE: false,
+                    SHOW_BRAND_WATERMARK: false,
+                    SHOW_DEEP_LINKING_IMAGE: false,
+                    
+                    // Hide all toolbars and buttons
                     TOOLBAR_ALWAYS_VISIBLE: false,
+                    INITIAL_TOOLBAR_TIMEOUT: 0,
+                    TOOLBAR_TIMEOUT: 0,
                     filmStripOnly: false,
-                    DEFAULT_REMOTE_DISPLAY_NAME: 'Target',
+                    
+                    // Disable chat interface
+                    DISABLE_VIDEO_BACKGROUND: true,
+                    DISABLE_FOCUS_INDICATOR: true,
+                    DISABLE_DOMINANT_SPEAKER_INDICATOR: true,
+                    DISABLE_TRANSCRIPTION_SUBTITLES: true,
+                    DISABLE_RINGING: true,
+                    
+                    // Hide participant names
+                    DEFAULT_REMOTE_DISPLAY_NAME: '∙∙∙',
+                    DEFAULT_LOCAL_DISPLAY_NAME: firstName,
+                    
+                    // Custom avatar
+                    GENERATE_ROOMNAMES_ON_WELCOME_PAGE: false,
+                    AVATAR_COLOR: avatarColor,
                 },
-                userInfo: { displayName: 'Ghost' }
+                userInfo: { 
+                    displayName: firstName,
+                    email: `${username}@cosmic.uplink`
+                }
             };
 
             api = new JitsiMeetExternalAPI(domain, options);
 
-            // 3. LISTEN FOR CONNECTION
+            // Show text hider briefly to cover any flash of text inputs
+            const textHider = document.getElementById('text-hider');
+            textHider.style.opacity = '1';
+            
+            // Inject custom CSS to hide all text inputs
+            setTimeout(() => {
+                const iframe = document.querySelector('#meet-container iframe');
+                if (iframe && iframe.contentWindow) {
+                    try {
+                        const style = document.createElement('style');
+                        style.textContent = `
+                            /* Hide all text inputs, chat, and form elements */
+                            input[type="text"], 
+                            input[type="email"], 
+                            textarea, 
+                            .input-control, 
+                            .chat-container,
+                            .chat-message,
+                            .prejoin-input-area,
+                            .prejoin-preview-dropdown-container,
+                            .prejoin-error,
+                            .settings-section-container,
+                            .profile-edit,
+                            .lobby-chat,
+                            .welcome-page,
+                            .prejoin-container,
+                            .toolbox-button[data-toolbox="chat"],
+                            .toolbox-button[data-toolbox="invite"],
+                            .new-toolbox .toolbox-content .toolbox-button[aria-label*="chat"],
+                            .toolbox-button-wth-dialog[aria-label*="chat"],
+                            [class*="chat"], 
+                            [id*="chat"],
+                            .sideToolbarContainer__8c0e1,
+                            .notifications-container,
+                            .prejoin-floating-label,
+                            .prejoin-input-label {
+                                display: none !important;
+                                visibility: hidden !important;
+                                opacity: 0 !important;
+                                width: 0 !important;
+                                height: 0 !important;
+                                position: absolute !important;
+                                pointer-events: none !important;
+                            }
+                            
+                            /* Hide any leftover text */
+                            .prejoin-preview-dialog,
+                            .prejoin-preview-container {
+                                background: #000 !important;
+                            }
+                            
+                            /* Make sure no text is visible */
+                            .prejoin-input-container,
+                            .prejoin-conference-name,
+                            .prejoin-conference-label {
+                                color: transparent !important;
+                                text-shadow: none !important;
+                            }
+                        `;
+                        iframe.contentDocument.head.appendChild(style);
+                    } catch (e) {
+                        console.log("Style injection blocked (expected)");
+                    }
+                }
+                
+                // Fade out text hider
+                setTimeout(() => {
+                    textHider.style.opacity = '0';
+                    setTimeout(() => {
+                        textHider.style.display = 'none';
+                    }, 500);
+                }, 1000);
+            }, 500);
+
+            // Event listeners
             api.addEventListeners({
-                // ONLY remove the boot screen when the video is ACTUALLY ready
                 videoConferenceJoined: function() {
-                    console.log("Joined! Fading in...");
+                    console.log("Cosmic link established!");
+                    statusElement.textContent = "> CONNECTION SECURE | ENCRYPTED";
                     
-                    // Fade out the boot screen
+                    // Hide boot screen
                     bootScreenElement.style.transition = "opacity 1s";
                     bootScreenElement.style.opacity = "0";
                     
-                    // Fade in the video
+                    // Show video
                     document.getElementById('meet-container').style.opacity = "1";
-
-                    // Remove boot screen from DOM after fade
+                    
+                    // Remove boot screen
                     setTimeout(() => {
                         bootScreenElement.style.display = 'none';
+                        
+                        // Send join notification to all participants
+                        try {
+                            api.executeCommand('sendChatMessage', 
+                                `User ${firstName} has joined the cosmic uplink. Connection encrypted.`
+                            );
+                        } catch(e) {
+                            // Chat disabled, this is expected
+                        }
+                    }, 1000);
+                    
+                    // Continuously hide any text inputs that might appear
+                    setInterval(() => {
+                        const iframe = document.querySelector('#meet-container iframe');
+                        if (iframe && iframe.contentDocument) {
+                            const inputs = iframe.contentDocument.querySelectorAll('input, textarea, [contenteditable="true"]');
+                            inputs.forEach(input => {
+                                input.style.display = 'none';
+                                input.style.visibility = 'hidden';
+                                input.style.opacity = '0';
+                                input.style.position = 'absolute';
+                                input.style.pointerEvents = 'none';
+                            });
+                        }
                     }, 1000);
                 },
                 
-                // If call ends, close app
+                participantJoined: function() {
+                    statusElement.textContent = `> USER DETECTED | CONNECTION ACTIVE`;
+                    setTimeout(() => {
+                        statusElement.textContent = `> ENCRYPTED CHANNEL: ${roomName}`;
+                    }, 3000);
+                },
+                
+                participantLeft: function() {
+                    statusElement.textContent = "> USER DISCONNECTED | AWAITING RE-CONNECTION";
+                },
+                
                 videoConferenceLeft: function() {
+                    statusElement.textContent = "> CONNECTION TERMINATED";
+                    setTimeout(() => {
+                        tg.close();
+                    }, 2000);
+                },
+                
+                readyToClose: function() {
                     tg.close();
                 }
             });
+            
+            // Handle connection errors
+            api.on('connectionEstablished', () => {
+                connectionAttempts = 0;
+                statusElement.textContent = "> QUANTUM LINK ACTIVE";
+            });
+            
+            api.on('connectionFailed', () => {
+                connectionAttempts++;
+                statusElement.textContent = `> CONNECTION FAILED (Attempt ${connectionAttempts}/${maxAttempts})`;
+                
+                if (connectionAttempts < maxAttempts) {
+                    setTimeout(() => {
+                        statusElement.textContent = "> RE-ESTABLISHING LINK...";
+                        api.dispose();
+                        startJitsi(bootScreenElement, statusElement);
+                    }, 2000);
+                } else {
+                    statusElement.textContent = "> CRITICAL FAILURE | REBOOT REQUIRED";
+                    setTimeout(() => {
+                        location.reload();
+                    }, 3000);
+                }
+            });
         }
+        
+        // Prevent accidental closing
+        window.addEventListener('beforeunload', (e) => {
+            e.preventDefault();
+            e.returnValue = 'Are you sure you want to disconnect from the cosmic uplink?';
+        });
+        
+        // Handle visibility changes (tab switch)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                document.getElementById('connection-status').textContent = "> CONNECTION SUSPENDED";
+            } else {
+                document.getElementById('connection-status').textContent = "> CONNECTION RESTORED";
+            }
+        });
+
     </script>
 </body>
 </html>
