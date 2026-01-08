@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Call</title>
+    <title>Low-Bandwidth Video Call</title>
     <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -11,20 +11,22 @@
         #container { max-width: 100vw; margin: 0 auto; padding: 10px; }
         #status { background: #333; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
         #videos { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
-        video { width: 100%; height: 300px; background: #111; border-radius: 10px; }
-        #controls { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
-        button { padding: 15px 25px; border: none; border-radius: 50px; font-size: 16px; cursor: pointer; }
+        video { width: 100%; height: 300px; background: #111; border-radius: 10px; object-fit: cover; }
+        #controls { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 50px; }
+        button { padding: 15px 25px; border: none; border-radius: 50px; font-size: 16px; cursor: pointer; min-width: 120px; }
         #mic { background: #4CAF50; color: white; }
         #cam { background: #2196F3; color: white; }
         #end { background: #f44336; color: white; }
-        .local { border: 3px solid #4CAF50; }
+        .local { border: 3px solid #4CAF50; transform: scaleX(-1); }
         .remote { border: 3px solid #2196F3; }
+        #waiting { text-align: center; padding: 20px; color: #aaa; }
     </style>
 </head>
 <body>
     <div id="container">
-        <div id="status">Loading...</div>
+        <div id="status">Initializing...</div>
         <div id="videos"></div>
+        <div id="waiting">Waiting for other participants...</div>
         <div id="controls">
             <button id="mic" onclick="toggleMic()">Mute</button>
             <button id="cam" onclick="toggleCam()">Video</button>
@@ -49,26 +51,33 @@
             try {
                 document.getElementById('status').innerText = 'Connecting...';
                 
-                // Create room instance
-                room = new LivekitClient.Room();
-                
-                // Setup event listeners
+                // 1. IMPORTANT: Setup room FIRST with low-bandwidth settings
+                room = new LivekitClient.Room({
+                    // Optimize for poor networks
+                    adaptiveStream: true, // Dynamically adjusts quality
+                    dynacast: true,       // Efficient track forwarding
+                    publishDefaults: {
+                        videoCodec: 'vp8', // Best for low bandwidth
+                        videoEncoding: {
+                            maxBitrate: 150_000, // Low bitrate for Ethiopia
+                            maxFramerate: 15
+                        },
+                        audioPreset: { maxBitrate: 16000 } // Low audio bitrate
+                    }
+                });
+
+                // 2. SETUP ALL EVENT LISTENERS BEFORE CONNECTING
                 setupRoomEvents();
                 
-                // Connect to room
+                // 3. Connect to room
                 await room.connect(LIVEKIT_URL, token);
-                document.getElementById('status').innerText = `Connected: ${room.name}`;
+                document.getElementById('status').innerText = `Connected to: ${room.name}`;
+                document.getElementById('waiting').style.display = 'none';
                 
-                // Enable camera and mic
+                // 4. Enable and publish local tracks
                 await room.localParticipant.enableCameraAndMicrophone();
                 
-                // Display local video
-                const localTrack = room.localParticipant.videoTrackPublications[0];
-                if (localTrack && localTrack.track) {
-                    localVideoElement = localTrack.track.attach();
-                    localVideoElement.classList.add('local');
-                    document.getElementById('videos').appendChild(localVideoElement);
-                }
+                // Local video will appear via the LocalTrackPublished event
                 
             } catch (error) {
                 console.error('Connection error:', error);
@@ -79,19 +88,49 @@
         function setupRoomEvents() {
             if (!room) return;
 
-            // Track subscribed (remote users)
+            // A. Handle LOCAL track when it's published
+            room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
+                console.log('Local track published:', publication.kind);
+                
+                if (publication.kind === 'video' && publication.track) {
+                    // Remove any existing local video
+                    const oldVideo = document.getElementById('local-video');
+                    if (oldVideo) oldVideo.remove();
+                    
+                    // Create and display local video
+                    localVideoElement = publication.track.attach();
+                    localVideoElement.id = 'local-video';
+                    localVideoElement.classList.add('local');
+                    document.getElementById('videos').appendChild(localVideoElement);
+                }
+            });
+
+            // B. Handle REMOTE track subscriptions
             room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-                console.log(`Track from ${participant.identity} subscribed`);
+                console.log(`Remote track subscribed from ${participant.identity}:`, track.kind);
                 
                 if (track.kind === 'video') {
+                    // Remove waiting message when first remote user joins
+                    document.getElementById('waiting').style.display = 'none';
+                    
+                    // Remove duplicate video if exists
+                    const existingVideo = document.getElementById(`video-${participant.identity}`);
+                    if (existingVideo) existingVideo.remove();
+                    
+                    // Create and display remote video
                     const videoElement = track.attach();
                     videoElement.classList.add('remote');
                     videoElement.id = `video-${participant.identity}`;
                     document.getElementById('videos').appendChild(videoElement);
                 }
+                
+                // For audio tracks, they auto-play when attached
+                if (track.kind === 'audio') {
+                    track.attach();
+                }
             });
 
-            // Track unsubscribed (user left)
+            // C. Handle REMOTE track unsubscriptions
             room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
                 console.log(`Track from ${participant.identity} unsubscribed`);
                 
@@ -99,11 +138,33 @@
                 if (videoElement) {
                     videoElement.remove();
                 }
+                
+                // Show waiting message if no remote videos left
+                const remoteVideos = document.querySelectorAll('.remote');
+                if (remoteVideos.length === 0) {
+                    document.getElementById('waiting').style.display = 'block';
+                }
             });
 
-            // Local track published
-            room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
-                console.log('Local track published:', publication.kind);
+            // D. Handle participant connections
+            room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
+                console.log(`${participant.identity} connected`);
+                document.getElementById('waiting').style.display = 'none';
+            });
+
+            // E. Handle participant disconnections
+            room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
+                console.log(`${participant.identity} disconnected`);
+                
+                // Remove their video
+                const videoElement = document.getElementById(`video-${participant.identity}`);
+                if (videoElement) videoElement.remove();
+                
+                // Show waiting if alone
+                const remoteVideos = document.querySelectorAll('.remote');
+                if (remoteVideos.length === 0) {
+                    document.getElementById('waiting').style.display = 'block';
+                }
             });
         }
 
@@ -114,6 +175,7 @@
                 const enabled = !room.localParticipant.isMicrophoneEnabled;
                 await room.localParticipant.setMicrophoneEnabled(enabled);
                 document.getElementById('mic').innerText = enabled ? 'Mute' : 'Unmute';
+                document.getElementById('mic').style.background = enabled ? '#4CAF50' : '#ff9800';
             } catch (error) {
                 console.error('Toggle mic error:', error);
             }
@@ -125,7 +187,8 @@
             try {
                 const enabled = !room.localParticipant.isCameraEnabled;
                 await room.localParticipant.setCameraEnabled(enabled);
-                document.getElementById('cam').innerText = enabled ? 'Video' : 'Show';
+                document.getElementById('cam').innerText = enabled ? 'Video Off' : 'Video On';
+                document.getElementById('cam').style.background = enabled ? '#2196F3' : '#ff9800';
                 
                 if (localVideoElement) {
                     localVideoElement.style.display = enabled ? 'block' : 'none';
@@ -139,7 +202,12 @@
             if (room) {
                 room.disconnect();
             }
-            window.close();
+            // Close the window if opened from Telegram, otherwise redirect
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = 'about:blank';
+            }
         }
 
         // Start when page loads
