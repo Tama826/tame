@@ -1,71 +1,88 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Video Call</title>
-    <script src="https://cdn.jsdelivr.net/npm/@livekit/client-sdk@1.8.1/dist/livekit-client.umd.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LiveKit Call (Low Bandwidth Mode)</title>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
     <style>
-        body { margin: 20px; font-family: Arial; background: #667eea; color: white; }
-        video { width: 100%; max-width: 600px; border: 3px solid white; }
-        button { padding: 15px 30px; margin: 10px; background: white; color: #667eea; }
-        #status { padding: 15px; margin: 20px; background: rgba(255,255,255,0.2); }
+        body { margin: 0; background: #0b0e11; color: #e9edef; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto; }
+        #video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; padding: 10px; height: 85vh; }
+        video { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; border: 1px solid #333; background: #1c1f23; }
+        #controls { height: 15vh; display: flex; justify-content: center; align-items: center; gap: 15px; background: #1c1f23; }
+        button { padding: 12px 24px; border-radius: 25px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .end-btn { background: #ff4742; color: white; }
+        .mute-btn { background: #3d444b; color: white; }
+        #status { position: absolute; top: 10px; right: 10px; font-size: 11px; color: #888; }
     </style>
 </head>
 <body>
-    <h1>🎥 Video Call</h1>
-    <div id="status">Loading...</div>
-    <video id="localVideo" autoplay muted playsinline></video>
-    <div>
-        <button onclick="startCamera()">Start Camera</button>
-        <button onclick="connectToLiveKit()">Connect to LiveKit</button>
+    <div id="status">Initializing...</div>
+    <div id="video-grid"></div>
+    <div id="controls">
+        <button id="mic-btn" class="mute-btn" onclick="toggleMic()">Mic On</button>
+        <button id="cam-btn" class="mute-btn" onclick="toggleCam()">Cam On</button>
+        <button class="end-btn" onclick="window.close()">Leave</button>
     </div>
-    
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomName = urlParams.get('room');
-        const token = urlParams.get('token');
-        
-        const statusEl = document.getElementById('status');
-        
-        if (!roomName || !token) {
-            statusEl.innerHTML = '❌ Missing room or token';
-        } else {
-            statusEl.innerHTML = `✅ Room: ${roomName}`;
+
+<script>
+    const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud";
+    let room;
+
+    async function init() {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+
+        if (!token) {
+            document.getElementById('status').innerText = "Missing Token";
+            return;
         }
-        
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                document.getElementById('localVideo').srcObject = stream;
-                statusEl.innerHTML += '<br>📹 Camera started';
-            } catch (error) {
-                statusEl.innerHTML += '<br>❌ Camera error: ' + error.message;
-            }
-        }
-        
-        async function connectToLiveKit() {
-            statusEl.innerHTML += '<br>🔄 Connecting to LiveKit...';
-            
-            try {
-                const room = new LiveKitClient.Room();
-                await room.connect('wss://video-20qatdd3.livekit.cloud', token);
-                statusEl.innerHTML += '<br>✅ Connected to LiveKit!';
-                
-                // Start camera and publish
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                for (const track of stream.getTracks()) {
-                    await room.localParticipant.publishTrack(track);
-                }
-                
-            } catch (error) {
-                statusEl.innerHTML += '<br>❌ LiveKit error: ' + error.message;
-            }
-        }
-        
-        window.addEventListener('load', () => {
-            if (roomName && token) {
-                setTimeout(startCamera, 1000);
+
+        room = new LivekitClient.Room({
+            adaptiveStream: true,
+            dynacast: true,
+            publishDefaults: {
+                videoCodec: 'vp8',
+                videoSimulcastLayers: [], // Disable for upload savings
+                resolution: { width: 480, height: 360, frameRate: 15 }, // Optimized for Ethiopia
+                audioPreset: { maxBitrate: 20000 }
             }
         });
-    </script>
+
+        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+            if (track.kind === 'video') {
+                const el = track.attach();
+                document.getElementById('video-grid').appendChild(el);
+            } else {
+                track.attach();
+            }
+        });
+
+        try {
+            await room.connect(LIVEKIT_URL, token);
+            await room.localParticipant.enableCameraAndMicrophone();
+            
+            const localVideo = room.localParticipant.getTrack(LivekitClient.Track.Source.Camera).videoTrack.attach();
+            document.getElementById('video-grid').appendChild(localVideo);
+            document.getElementById('status').innerText = "Connected";
+        } catch (e) {
+            document.getElementById('status').innerText = "Error: " + e.message;
+        }
+    }
+
+    async function toggleMic() {
+        const enabled = room.localParticipant.isMicrophoneEnabled;
+        await room.localParticipant.setMicrophoneEnabled(!enabled);
+        document.getElementById('mic-btn').innerText = !enabled ? "Mic On" : "Mic Off";
+    }
+
+    async function toggleCam() {
+        const enabled = room.localParticipant.isCameraEnabled;
+        await room.localParticipant.setCameraEnabled(!enabled);
+        document.getElementById('cam-btn').innerText = !enabled ? "Cam On" : "Cam Off";
+    }
+
+    init();
+</script>
 </body>
 </html>
