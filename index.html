@@ -38,80 +38,115 @@
             return;
         }
 
-        // Decode the token to check its contents (for debugging)
         try {
+            // Decode the token to extract room name
             const parts = token.split('.');
             const payload = JSON.parse(atob(parts[1]));
             console.log("Token payload:", payload);
             
-            // Extract room name from token if available
-            const roomName = payload.grants?.roomJoin?.room || `room_${Date.now()}`;
+            // Extract room name from token - LiveKit uses 'grants.room' not 'grants.roomJoin.room'
+            const roomName = payload.grants?.room || `room_${Date.now()}`;
             
-            document.getElementById('status').innerText = `Connecting to room: ${roomName}`;
+            document.getElementById('status').innerText = `Connecting to: ${roomName}`;
             
             room = new LivekitClient.Room({
                 adaptiveStream: true,
                 dynacast: true,
                 publishDefaults: {
                     videoCodec: 'vp8',
-                    videoSimulcastLayers: [], // Disable for upload savings
-                    resolution: { width: 480, height: 360, frameRate: 15 }, // Optimized for Ethiopia
+                    videoSimulcastLayers: [],
+                    resolution: { width: 480, height: 360, frameRate: 15 },
                     audioPreset: { maxBitrate: 20000 }
                 }
             });
 
-            // Connect with explicit room name from token
-            await room.connect(LIVEKIT_URL, token, { 
-                roomName: roomName 
-            });
-            
-            document.getElementById('status').innerText = "Connected";
-            
-            // Set up track subscriptions
+            // Setup event listeners BEFORE connecting
             room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
                 if (track.kind === 'video') {
                     const el = track.attach();
+                    el.id = `video-${participant.identity}`;
                     document.getElementById('video-grid').appendChild(el);
-                } else {
-                    track.attach();
-                }
-            });
-            
-            room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
-                if (publication.kind === 'video') {
-                    const track = publication.track;
-                    if (track) {
-                        const el = track.attach();
-                        document.getElementById('video-grid').appendChild(el);
-                    }
                 }
             });
 
+            room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
+                if (publication.kind === 'video' && publication.track) {
+                    const el = publication.track.attach();
+                    el.id = 'local-video';
+                    document.getElementById('video-grid').appendChild(el);
+                }
+            });
+
+            // Connect to the room with explicit room name
+            await room.connect(LIVEKIT_URL, token);
+            
+            document.getElementById('status').innerText = "Connected - Enabling camera...";
+            
             // Enable camera and microphone
             await room.localParticipant.enableCameraAndMicrophone();
+            
+            document.getElementById('status').innerText = `Connected to: ${room.name}`;
             
         } catch (e) {
             console.error("Connection error:", e);
             document.getElementById('status').innerText = "Error: " + e.message;
+            
+            // Try fallback connection method
+            if (e.message.includes("no room name")) {
+                document.getElementById('status').innerText = "Retrying with fallback method...";
+                await retryConnection(token);
+            }
+        }
+    }
+
+    async function retryConnection(token) {
+        try {
+            // Alternative connection method
+            room = new LivekitClient.Room();
+            
+            // More permissive settings
+            const opts = {
+                videoCaptureDefaults: {
+                    resolution: { width: 320, height: 240, frameRate: 10 }
+                }
+            };
+            
+            await room.connect(LIVEKIT_URL, token, opts);
+            
+            // Publish tracks after connection
+            await room.localParticipant.enableCameraAndMicrophone();
+            
+            document.getElementById('status').innerText = "Connected (Fallback)";
+            
+        } catch (fallbackError) {
+            document.getElementById('status').innerText = "Fallback also failed: " + fallbackError.message;
         }
     }
 
     async function toggleMic() {
-        if (!room) return;
-        const enabled = room.localParticipant.isMicrophoneEnabled;
-        await room.localParticipant.setMicrophoneEnabled(!enabled);
-        document.getElementById('mic-btn').innerText = !enabled ? "Mic On" : "Mic Off";
+        if (!room || !room.localParticipant) return;
+        try {
+            const enabled = !room.localParticipant.isMicrophoneEnabled;
+            await room.localParticipant.setMicrophoneEnabled(enabled);
+            document.getElementById('mic-btn').innerText = enabled ? "Mic On" : "Mic Off";
+        } catch (e) {
+            console.error("Toggle mic error:", e);
+        }
     }
 
     async function toggleCam() {
-        if (!room) return;
-        const enabled = room.localParticipant.isCameraEnabled;
-        await room.localParticipant.setCameraEnabled(!enabled);
-        document.getElementById('cam-btn').innerText = !enabled ? "Cam On" : "Cam Off";
+        if (!room || !room.localParticipant) return;
+        try {
+            const enabled = !room.localParticipant.isCameraEnabled;
+            await room.localParticipant.setCameraEnabled(enabled);
+            document.getElementById('cam-btn').innerText = enabled ? "Cam On" : "Cam Off";
+        } catch (e) {
+            console.error("Toggle cam error:", e);
+        }
     }
 
     // Initialize when page loads
-    window.onload = init;
+    window.addEventListener('load', init);
 </script>
 </body>
 </html>
