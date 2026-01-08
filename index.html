@@ -1,225 +1,121 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LiveKit Video Call</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Call</title>
     <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #0b0e11; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100vh; }
-        #container { display: flex; flex-direction: column; height: 100vh; }
-        #header { padding: 10px; background: #1c1f23; display: flex; justify-content: space-between; align-items: center; }
-        #status { color: #4CAF50; font-size: 14px; }
-        #participants { color: #888; font-size: 14px; }
-        #video-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; padding: 10px; }
-        video { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; background: #000; border: 2px solid #333; }
-        video.local { border-color: #4CAF50; }
-        video.remote { border-color: #2196F3; }
-        #controls { padding: 15px; background: #1c1f23; display: flex; justify-content: center; gap: 15px; }
-        button { padding: 12px 24px; border: none; border-radius: 25px; font-weight: bold; font-size: 14px; cursor: pointer; min-width: 100px; }
-        #mic-btn { background: #3d444b; color: white; }
-        #cam-btn { background: #3d444b; color: white; }
-        #end-btn { background: #ff4742; color: white; }
-        .error { color: #ff4742; }
-        .warning { color: #ff9800; }
+        body { background: #000; color: white; font-family: Arial, sans-serif; }
+        #container { max-width: 100vw; margin: 0 auto; padding: 10px; }
+        #status { background: #333; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
+        #videos { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+        video { width: 100%; height: 300px; background: #111; border-radius: 10px; }
+        #controls { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
+        button { padding: 15px 25px; border: none; border-radius: 50px; font-size: 16px; cursor: pointer; }
+        #mic { background: #4CAF50; color: white; }
+        #cam { background: #2196F3; color: white; }
+        #end { background: #f44336; color: white; }
+        .local { border: 3px solid #4CAF50; }
+        .remote { border: 3px solid #2196F3; }
     </style>
 </head>
 <body>
     <div id="container">
-        <div id="header">
-            <div id="status">Initializing...</div>
-            <div id="participants">Participants: 0</div>
-        </div>
-        <div id="video-grid"></div>
+        <div id="status">Loading...</div>
+        <div id="videos"></div>
         <div id="controls">
-            <button id="mic-btn" onclick="toggleMic()">🎤 Mute</button>
-            <button id="cam-btn" onclick="toggleCam()">📷 Stop</button>
-            <button id="end-btn" onclick="endCall()">📞 End</button>
+            <button id="mic" onclick="toggleMic()">Mute</button>
+            <button id="cam" onclick="toggleCam()">Video</button>
+            <button id="end" onclick="leaveCall()">Leave</button>
         </div>
     </div>
 
     <script>
-        const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud";
+        const LIVEKIT_URL = 'wss://video-20qatdd3.livekit.cloud';
         let room = null;
-        let localVideoTrack = null;
-        let participantsCount = 1; // Start with local participant
+        let localVideoElement = null;
 
-        async function init() {
+        async function startCall() {
             const params = new URLSearchParams(window.location.search);
             const token = params.get('token');
-            const roomCode = params.get('room');
-
+            
             if (!token) {
-                updateStatus("Missing token parameter", true);
+                document.getElementById('status').innerText = 'No token provided';
                 return;
             }
 
             try {
-                updateStatus("Connecting to LiveKit...");
+                document.getElementById('status').innerText = 'Connecting...';
                 
                 // Create room instance
                 room = new LivekitClient.Room();
                 
-                // Setup event listeners BEFORE connecting
-                setupRoomListeners();
+                // Setup event listeners
+                setupRoomEvents();
                 
                 // Connect to room
                 await room.connect(LIVEKIT_URL, token);
+                document.getElementById('status').innerText = `Connected: ${room.name}`;
                 
-                updateStatus(`Connected to room: ${room.name}`, false);
+                // Enable camera and mic
+                await room.localParticipant.enableCameraAndMicrophone();
                 
-                // Publish local tracks
-                await publishLocalTracks();
-                
-                // Update participants count
-                updateParticipantsCount();
-                
-                // Set up periodic check for participants
-                setInterval(updateParticipantsCount, 3000);
+                // Display local video
+                const localTrack = room.localParticipant.videoTrackPublications[0];
+                if (localTrack && localTrack.track) {
+                    localVideoElement = localTrack.track.attach();
+                    localVideoElement.classList.add('local');
+                    document.getElementById('videos').appendChild(localVideoElement);
+                }
                 
             } catch (error) {
-                console.error("Connection error:", error);
-                updateStatus(`Connection failed: ${error.message}`, true);
+                console.error('Connection error:', error);
+                document.getElementById('status').innerText = 'Error: ' + error.message;
             }
         }
 
-        function setupRoomListeners() {
+        function setupRoomEvents() {
             if (!room) return;
 
-            // Participant connected
-            room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
-                console.log(`${participant.identity} connected`);
-                updateParticipantsCount();
-            });
-
-            // Participant disconnected
-            room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
-                console.log(`${participant.identity} disconnected`);
-                removeParticipantVideo(participant.identity);
-                updateParticipantsCount();
-            });
-
-            // Track subscribed (remote tracks)
+            // Track subscribed (remote users)
             room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-                console.log(`Track subscribed: ${track.kind} from ${participant.identity}`);
+                console.log(`Track from ${participant.identity} subscribed`);
+                
                 if (track.kind === 'video') {
-                    addParticipantVideo(track, participant.identity);
-                } else if (track.kind === 'audio') {
-                    track.attach(); // Attach audio to DOM
+                    const videoElement = track.attach();
+                    videoElement.classList.add('remote');
+                    videoElement.id = `video-${participant.identity}`;
+                    document.getElementById('videos').appendChild(videoElement);
                 }
-                updateParticipantsCount();
             });
 
-            // Track unsubscribed
+            // Track unsubscribed (user left)
             room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-                console.log(`Track unsubscribed: ${track.kind} from ${participant.identity}`);
-                if (track.kind === 'video') {
-                    removeParticipantVideo(participant.identity);
+                console.log(`Track from ${participant.identity} unsubscribed`);
+                
+                const videoElement = document.getElementById(`video-${participant.identity}`);
+                if (videoElement) {
+                    videoElement.remove();
                 }
-                updateParticipantsCount();
             });
-        }
 
-        async function publishLocalTracks() {
-            try {
-                // Get local camera and microphone
-                const devices = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 },
-                        frameRate: { ideal: 15 }
-                    },
-                    audio: true
-                });
-
-                // Create video track
-                const videoTrack = new LivekitClient.LocalVideoTrack(devices.getVideoTracks()[0]);
-                const audioTrack = new LivekitClient.LocalAudioTrack(devices.getAudioTracks()[0]);
-
-                // Publish tracks
-                await room.localParticipant.publishTrack(videoTrack);
-                await room.localParticipant.publishTrack(audioTrack);
-
-                // Add local video to grid
-                const localVideoElement = videoTrack.attach();
-                localVideoElement.className = 'local';
-                localVideoElement.id = 'local-video';
-                document.getElementById('video-grid').appendChild(localVideoElement);
-
-                localVideoTrack = videoTrack;
-
-                updateStatus("Local camera and microphone enabled", false);
-
-            } catch (error) {
-                console.error("Error accessing media devices:", error);
-                updateStatus("Could not access camera/microphone", true);
-            }
-        }
-
-        function addParticipantVideo(track, participantId) {
-            // Check if video element already exists
-            const existingVideo = document.getElementById(`video-${participantId}`);
-            if (existingVideo) {
-                existingVideo.remove();
-            }
-
-            // Create new video element
-            const videoElement = track.attach();
-            videoElement.id = `video-${participantId}`;
-            videoElement.className = 'remote';
-            document.getElementById('video-grid').appendChild(videoElement);
-        }
-
-        function removeParticipantVideo(participantId) {
-            const videoElement = document.getElementById(`video-${participantId}`);
-            if (videoElement) {
-                videoElement.remove();
-            }
-        }
-
-        function updateParticipantsCount() {
-            if (!room) return;
-            
-            const remoteCount = Array.from(room.participants.values()).filter(p => 
-                p !== room.localParticipant
-            ).length;
-            
-            participantsCount = remoteCount + 1; // +1 for local participant
-            
-            const participantsElement = document.getElementById('participants');
-            participantsElement.textContent = `Participants: ${participantsCount}`;
-            
-            if (participantsCount === 1) {
-                participantsElement.className = 'warning';
-            } else {
-                participantsElement.className = '';
-            }
-        }
-
-        function updateStatus(message, isError = false) {
-            const statusElement = document.getElementById('status');
-            statusElement.textContent = message;
-            statusElement.className = isError ? 'error' : '';
+            // Local track published
+            room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
+                console.log('Local track published:', publication.kind);
+            });
         }
 
         async function toggleMic() {
             if (!room || !room.localParticipant) return;
             
             try {
-                const audioPublications = Array.from(room.localParticipant.audioTracks.values());
-                if (audioPublications.length > 0) {
-                    const audioPublication = audioPublications[0];
-                    if (audioPublication.isMuted) {
-                        await audioPublication.unmute();
-                        document.getElementById('mic-btn').textContent = '🎤 Mute';
-                    } else {
-                        await audioPublication.mute();
-                        document.getElementById('mic-btn').textContent = '🎤 Unmute';
-                    }
-                }
+                const enabled = !room.localParticipant.isMicrophoneEnabled;
+                await room.localParticipant.setMicrophoneEnabled(enabled);
+                document.getElementById('mic').innerText = enabled ? 'Mute' : 'Unmute';
             } catch (error) {
-                console.error("Toggle mic error:", error);
+                console.error('Toggle mic error:', error);
             }
         }
 
@@ -227,46 +123,27 @@
             if (!room || !room.localParticipant) return;
             
             try {
-                const videoPublications = Array.from(room.localParticipant.videoTracks.values());
-                if (videoPublications.length > 0) {
-                    const videoPublication = videoPublications[0];
-                    if (videoPublication.isMuted) {
-                        await videoPublication.unmute();
-                        document.getElementById('cam-btn').textContent = '📷 Stop';
-                        const localVideo = document.getElementById('local-video');
-                        if (localVideo) localVideo.style.display = 'block';
-                    } else {
-                        await videoPublication.mute();
-                        document.getElementById('cam-btn').textContent = '📷 Start';
-                        const localVideo = document.getElementById('local-video');
-                        if (localVideo) localVideo.style.display = 'none';
-                    }
+                const enabled = !room.localParticipant.isCameraEnabled;
+                await room.localParticipant.setCameraEnabled(enabled);
+                document.getElementById('cam').innerText = enabled ? 'Video' : 'Show';
+                
+                if (localVideoElement) {
+                    localVideoElement.style.display = enabled ? 'block' : 'none';
                 }
             } catch (error) {
-                console.error("Toggle cam error:", error);
+                console.error('Toggle cam error:', error);
             }
         }
 
-        async function endCall() {
+        function leaveCall() {
             if (room) {
-                try {
-                    await room.disconnect();
-                } catch (error) {
-                    console.error("Disconnect error:", error);
-                }
-                room = null;
+                room.disconnect();
             }
-            
-            // Close the window or redirect
-            if (window.opener) {
-                window.close();
-            } else {
-                window.location.href = 'about:blank';
-            }
+            window.close();
         }
 
-        // Initialize when page loads
-        window.addEventListener('load', init);
+        // Start when page loads
+        window.addEventListener('load', startCall);
     </script>
 </body>
 </html>
