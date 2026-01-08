@@ -38,51 +38,80 @@
             return;
         }
 
-        room = new LivekitClient.Room({
-            adaptiveStream: true,
-            dynacast: true,
-            publishDefaults: {
-                videoCodec: 'vp8',
-                videoSimulcastLayers: [], // Disable for upload savings
-                resolution: { width: 480, height: 360, frameRate: 15 }, // Optimized for Ethiopia
-                audioPreset: { maxBitrate: 20000 }
-            }
-        });
-
-        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-            if (track.kind === 'video') {
-                const el = track.attach();
-                document.getElementById('video-grid').appendChild(el);
-            } else {
-                track.attach();
-            }
-        });
-
+        // Decode the token to check its contents (for debugging)
         try {
-            await room.connect(LIVEKIT_URL, token);
+            const parts = token.split('.');
+            const payload = JSON.parse(atob(parts[1]));
+            console.log("Token payload:", payload);
+            
+            // Extract room name from token if available
+            const roomName = payload.grants?.roomJoin?.room || `room_${Date.now()}`;
+            
+            document.getElementById('status').innerText = `Connecting to room: ${roomName}`;
+            
+            room = new LivekitClient.Room({
+                adaptiveStream: true,
+                dynacast: true,
+                publishDefaults: {
+                    videoCodec: 'vp8',
+                    videoSimulcastLayers: [], // Disable for upload savings
+                    resolution: { width: 480, height: 360, frameRate: 15 }, // Optimized for Ethiopia
+                    audioPreset: { maxBitrate: 20000 }
+                }
+            });
+
+            // Connect with explicit room name from token
+            await room.connect(LIVEKIT_URL, token, { 
+                roomName: roomName 
+            });
+            
+            document.getElementById('status').innerText = "Connected";
+            
+            // Set up track subscriptions
+            room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                if (track.kind === 'video') {
+                    const el = track.attach();
+                    document.getElementById('video-grid').appendChild(el);
+                } else {
+                    track.attach();
+                }
+            });
+            
+            room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
+                if (publication.kind === 'video') {
+                    const track = publication.track;
+                    if (track) {
+                        const el = track.attach();
+                        document.getElementById('video-grid').appendChild(el);
+                    }
+                }
+            });
+
+            // Enable camera and microphone
             await room.localParticipant.enableCameraAndMicrophone();
             
-            const localVideo = room.localParticipant.getTrack(LivekitClient.Track.Source.Camera).videoTrack.attach();
-            document.getElementById('video-grid').appendChild(localVideo);
-            document.getElementById('status').innerText = "Connected";
         } catch (e) {
+            console.error("Connection error:", e);
             document.getElementById('status').innerText = "Error: " + e.message;
         }
     }
 
     async function toggleMic() {
+        if (!room) return;
         const enabled = room.localParticipant.isMicrophoneEnabled;
         await room.localParticipant.setMicrophoneEnabled(!enabled);
         document.getElementById('mic-btn').innerText = !enabled ? "Mic On" : "Mic Off";
     }
 
     async function toggleCam() {
+        if (!room) return;
         const enabled = room.localParticipant.isCameraEnabled;
         await room.localParticipant.setCameraEnabled(!enabled);
         document.getElementById('cam-btn').innerText = !enabled ? "Cam On" : "Cam Off";
     }
 
-    init();
+    // Initialize when page loads
+    window.onload = init;
 </script>
 </body>
 </html>
