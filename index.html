@@ -6,175 +6,267 @@
     <title>LiveKit Video Call</title>
     <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
     <style>
-        body { margin: 0; background: #0b0e11; color: #e9edef; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto; }
-        #video-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; padding: 10px; height: 85vh; }
-        video { width: 100%; height: 100%; object-fit: cover; border-radius: 12px; border: 2px solid #333; background: #1c1f23; }
-        .local-video { border-color: #4CAF50; }
-        .remote-video { border-color: #2196F3; }
-        #controls { height: 15vh; display: flex; justify-content: center; align-items: center; gap: 15px; background: #1c1f23; }
-        button { padding: 12px 24px; border-radius: 25px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .end-btn { background: #ff4742; color: white; }
-        .mute-btn { background: #3d444b; color: white; }
-        #status { position: absolute; top: 10px; left: 10px; font-size: 12px; color: #4CAF50; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 5px; }
-        #participants { position: absolute; top: 10px; right: 10px; font-size: 12px; color: #888; background: rgba(0,0,0,0.7); padding: 5px 10px; border-radius: 5px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0b0e11; color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100vh; }
+        #container { display: flex; flex-direction: column; height: 100vh; }
+        #header { padding: 10px; background: #1c1f23; display: flex; justify-content: space-between; align-items: center; }
+        #status { color: #4CAF50; font-size: 14px; }
+        #participants { color: #888; font-size: 14px; }
+        #video-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; padding: 10px; }
+        video { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; background: #000; border: 2px solid #333; }
+        video.local { border-color: #4CAF50; }
+        video.remote { border-color: #2196F3; }
+        #controls { padding: 15px; background: #1c1f23; display: flex; justify-content: center; gap: 15px; }
+        button { padding: 12px 24px; border: none; border-radius: 25px; font-weight: bold; font-size: 14px; cursor: pointer; min-width: 100px; }
+        #mic-btn { background: #3d444b; color: white; }
+        #cam-btn { background: #3d444b; color: white; }
+        #end-btn { background: #ff4742; color: white; }
+        .error { color: #ff4742; }
+        .warning { color: #ff9800; }
     </style>
 </head>
 <body>
-    <div id="status">Connecting...</div>
-    <div id="participants">Participants: 0</div>
-    <div id="video-grid"></div>
-    <div id="controls">
-        <button id="mic-btn" class="mute-btn" onclick="toggleMic()">Mic On</button>
-        <button id="cam-btn" class="mute-btn" onclick="toggleCam()">Cam On</button>
-        <button class="end-btn" onclick="endCall()">End Call</button>
+    <div id="container">
+        <div id="header">
+            <div id="status">Initializing...</div>
+            <div id="participants">Participants: 0</div>
+        </div>
+        <div id="video-grid"></div>
+        <div id="controls">
+            <button id="mic-btn" onclick="toggleMic()">🎤 Mute</button>
+            <button id="cam-btn" onclick="toggleCam()">📷 Stop</button>
+            <button id="end-btn" onclick="endCall()">📞 End</button>
+        </div>
     </div>
 
-<script>
-    const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud";
-    let room;
-    let localVideoTrack;
+    <script>
+        const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud";
+        let room = null;
+        let localVideoTrack = null;
+        let participantsCount = 1; // Start with local participant
 
-    async function init() {
-        const params = new URLSearchParams(window.location.search);
-        const token = params.get('token');
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token');
+            const roomCode = params.get('room');
 
-        if (!token) {
-            document.getElementById('status').innerText = "Missing Token";
-            return;
-        }
-
-        try {
-            // Decode token to get room info
-            const parts = token.split('.');
-            const payload = JSON.parse(atob(parts[1]));
-            const roomName = payload.grants?.room;
-            
-            document.getElementById('status').innerText = `Joining: ${roomName}`;
-            
-            // Create room with optimized settings
-            room = new LivekitClient.Room({
-                adaptiveStream: true,
-                dynacast: true,
-                publishDefaults: {
-                    videoCodec: 'vp8',
-                    videoSimulcastLayers: [],
-                    resolution: { width: 480, height: 360, frameRate: 15 },
-                    audioPreset: { maxBitrate: 20000 }
-                }
-            });
-
-            // Track participants
-            room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
-                updateParticipantsCount();
-                console.log(`${participant.identity} joined`);
-            });
-
-            room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
-                updateParticipantsCount();
-                // Remove their video element
-                const videoEl = document.getElementById(`video-${participant.identity}`);
-                if (videoEl) videoEl.remove();
-            });
-
-            // Handle remote tracks
-            room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-                if (track.kind === 'video') {
-                    const el = track.attach();
-                    el.id = `video-${participant.identity}`;
-                    el.classList.add('remote-video');
-                    document.getElementById('video-grid').appendChild(el);
-                } else if (track.kind === 'audio') {
-                    track.attach();
-                }
-                updateParticipantsCount();
-            });
-
-            // Handle local track
-            room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
-                if (publication.kind === 'video') {
-                    localVideoTrack = publication.track;
-                    const el = localVideoTrack.attach();
-                    el.id = 'local-video';
-                    el.classList.add('local-video');
-                    document.getElementById('video-grid').appendChild(el);
-                }
-            });
-
-            // Connect to room
-            await room.connect(LIVEKIT_URL, token);
-            
-            document.getElementById('status').innerText = `Connected to: ${room.name}`;
-            
-            // Enable camera and microphone
-            await room.localParticipant.enableCameraAndMicrophone();
-            
-            // Update participants count
-            updateParticipantsCount();
-            
-        } catch (e) {
-            console.error("Connection error:", e);
-            document.getElementById('status').innerText = "Error: " + e.message;
-            document.getElementById('status').style.color = '#ff4742';
-        }
-    }
-
-    function updateParticipantsCount() {
-        if (room) {
-            const count = room.participants.size + 1; // +1 for local participant
-            document.getElementById('participants').innerText = `Participants: ${count}`;
-            
-            if (count === 1) {
-                document.getElementById('participants').style.color = '#ff9800';
-                document.getElementById('participants').innerText += ' (Waiting for others...)';
-            } else {
-                document.getElementById('participants').style.color = '#4CAF50';
+            if (!token) {
+                updateStatus("Missing token parameter", true);
+                return;
             }
-        }
-    }
 
-    async function toggleMic() {
-        if (!room || !room.localParticipant) return;
-        try {
-            const enabled = !room.localParticipant.isMicrophoneEnabled;
-            await room.localParticipant.setMicrophoneEnabled(enabled);
-            document.getElementById('mic-btn').innerText = enabled ? "Mic On" : "Mic Off";
-            document.getElementById('mic-btn').style.background = enabled ? '#3d444b' : '#ff4742';
-        } catch (e) {
-            console.error("Toggle mic error:", e);
-        }
-    }
-
-    async function toggleCam() {
-        if (!room || !room.localParticipant) return;
-        try {
-            const enabled = !room.localParticipant.isCameraEnabled;
-            await room.localParticipant.setCameraEnabled(enabled);
-            document.getElementById('cam-btn').innerText = enabled ? "Cam On" : "Cam Off";
-            document.getElementById('cam-btn').style.background = enabled ? '#3d444b' : '#ff4742';
-            
-            // Hide/show local video
-            const localVideo = document.getElementById('local-video');
-            if (localVideo) {
-                localVideo.style.display = enabled ? 'block' : 'none';
-            }
-        } catch (e) {
-            console.error("Toggle cam error:", e);
-        }
-    }
-
-    async function endCall() {
-        if (room) {
             try {
-                await room.disconnect();
-            } catch (e) {
-                console.error("Disconnect error:", e);
+                updateStatus("Connecting to LiveKit...");
+                
+                // Create room instance
+                room = new LivekitClient.Room();
+                
+                // Setup event listeners BEFORE connecting
+                setupRoomListeners();
+                
+                // Connect to room
+                await room.connect(LIVEKIT_URL, token);
+                
+                updateStatus(`Connected to room: ${room.name}`, false);
+                
+                // Publish local tracks
+                await publishLocalTracks();
+                
+                // Update participants count
+                updateParticipantsCount();
+                
+                // Set up periodic check for participants
+                setInterval(updateParticipantsCount, 3000);
+                
+            } catch (error) {
+                console.error("Connection error:", error);
+                updateStatus(`Connection failed: ${error.message}`, true);
             }
         }
-        window.close();
-    }
 
-    // Initialize when page loads
-    window.addEventListener('load', init);
-</script>
+        function setupRoomListeners() {
+            if (!room) return;
+
+            // Participant connected
+            room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
+                console.log(`${participant.identity} connected`);
+                updateParticipantsCount();
+            });
+
+            // Participant disconnected
+            room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
+                console.log(`${participant.identity} disconnected`);
+                removeParticipantVideo(participant.identity);
+                updateParticipantsCount();
+            });
+
+            // Track subscribed (remote tracks)
+            room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                console.log(`Track subscribed: ${track.kind} from ${participant.identity}`);
+                if (track.kind === 'video') {
+                    addParticipantVideo(track, participant.identity);
+                } else if (track.kind === 'audio') {
+                    track.attach(); // Attach audio to DOM
+                }
+                updateParticipantsCount();
+            });
+
+            // Track unsubscribed
+            room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+                console.log(`Track unsubscribed: ${track.kind} from ${participant.identity}`);
+                if (track.kind === 'video') {
+                    removeParticipantVideo(participant.identity);
+                }
+                updateParticipantsCount();
+            });
+        }
+
+        async function publishLocalTracks() {
+            try {
+                // Get local camera and microphone
+                const devices = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        frameRate: { ideal: 15 }
+                    },
+                    audio: true
+                });
+
+                // Create video track
+                const videoTrack = new LivekitClient.LocalVideoTrack(devices.getVideoTracks()[0]);
+                const audioTrack = new LivekitClient.LocalAudioTrack(devices.getAudioTracks()[0]);
+
+                // Publish tracks
+                await room.localParticipant.publishTrack(videoTrack);
+                await room.localParticipant.publishTrack(audioTrack);
+
+                // Add local video to grid
+                const localVideoElement = videoTrack.attach();
+                localVideoElement.className = 'local';
+                localVideoElement.id = 'local-video';
+                document.getElementById('video-grid').appendChild(localVideoElement);
+
+                localVideoTrack = videoTrack;
+
+                updateStatus("Local camera and microphone enabled", false);
+
+            } catch (error) {
+                console.error("Error accessing media devices:", error);
+                updateStatus("Could not access camera/microphone", true);
+            }
+        }
+
+        function addParticipantVideo(track, participantId) {
+            // Check if video element already exists
+            const existingVideo = document.getElementById(`video-${participantId}`);
+            if (existingVideo) {
+                existingVideo.remove();
+            }
+
+            // Create new video element
+            const videoElement = track.attach();
+            videoElement.id = `video-${participantId}`;
+            videoElement.className = 'remote';
+            document.getElementById('video-grid').appendChild(videoElement);
+        }
+
+        function removeParticipantVideo(participantId) {
+            const videoElement = document.getElementById(`video-${participantId}`);
+            if (videoElement) {
+                videoElement.remove();
+            }
+        }
+
+        function updateParticipantsCount() {
+            if (!room) return;
+            
+            const remoteCount = Array.from(room.participants.values()).filter(p => 
+                p !== room.localParticipant
+            ).length;
+            
+            participantsCount = remoteCount + 1; // +1 for local participant
+            
+            const participantsElement = document.getElementById('participants');
+            participantsElement.textContent = `Participants: ${participantsCount}`;
+            
+            if (participantsCount === 1) {
+                participantsElement.className = 'warning';
+            } else {
+                participantsElement.className = '';
+            }
+        }
+
+        function updateStatus(message, isError = false) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = message;
+            statusElement.className = isError ? 'error' : '';
+        }
+
+        async function toggleMic() {
+            if (!room || !room.localParticipant) return;
+            
+            try {
+                const audioPublications = Array.from(room.localParticipant.audioTracks.values());
+                if (audioPublications.length > 0) {
+                    const audioPublication = audioPublications[0];
+                    if (audioPublication.isMuted) {
+                        await audioPublication.unmute();
+                        document.getElementById('mic-btn').textContent = '🎤 Mute';
+                    } else {
+                        await audioPublication.mute();
+                        document.getElementById('mic-btn').textContent = '🎤 Unmute';
+                    }
+                }
+            } catch (error) {
+                console.error("Toggle mic error:", error);
+            }
+        }
+
+        async function toggleCam() {
+            if (!room || !room.localParticipant) return;
+            
+            try {
+                const videoPublications = Array.from(room.localParticipant.videoTracks.values());
+                if (videoPublications.length > 0) {
+                    const videoPublication = videoPublications[0];
+                    if (videoPublication.isMuted) {
+                        await videoPublication.unmute();
+                        document.getElementById('cam-btn').textContent = '📷 Stop';
+                        const localVideo = document.getElementById('local-video');
+                        if (localVideo) localVideo.style.display = 'block';
+                    } else {
+                        await videoPublication.mute();
+                        document.getElementById('cam-btn').textContent = '📷 Start';
+                        const localVideo = document.getElementById('local-video');
+                        if (localVideo) localVideo.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error("Toggle cam error:", error);
+            }
+        }
+
+        async function endCall() {
+            if (room) {
+                try {
+                    await room.disconnect();
+                } catch (error) {
+                    console.error("Disconnect error:", error);
+                }
+                room = null;
+            }
+            
+            // Close the window or redirect
+            if (window.opener) {
+                window.close();
+            } else {
+                window.location.href = 'about:blank';
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
 </body>
 </html>
