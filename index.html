@@ -6,17 +6,10 @@
 <title>TAME Video Chat</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@2.5.9/dist/livekit-client.umd.min.js"></script>
-<!-- Optional: Add WebRTC adapter for better mobile support -->
-<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
 
 <style>
     /* --- RESET & BASE --- */
-    * { 
-        box-sizing: border-box; 
-        -webkit-tap-highlight-color: transparent; 
-        margin: 0;
-        padding: 0;
-    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
         margin: 0;
         background: #000;
@@ -27,8 +20,6 @@
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
     }
 
     /* --- MAIN VIDEO CONTAINER --- */
@@ -45,28 +36,26 @@
         position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
-        background: #111;
+        right: 0;
+        bottom: 0;
         z-index: 0;
         display: flex;
         align-items: center;
         justify-content: center;
+        background: #111;
     }
     #remoteVideo {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        background: #000;
-        transform: rotateY(180deg); /* Mirror remote video for natural viewing */
+        display: none; /* Hidden until remote video is available */
+        transform: scaleX(-1); /* Mirror remote video like selfie view */
     }
     .placeholder-text {
         position: absolute;
-        color: rgba(255,255,255,0.5);
-        font-size: 20px;
+        color: rgba(255,255,255,0.3);
+        font-size: 18px;
         z-index: 1;
-        text-align: center;
-        padding: 20px;
     }
 
     /* Local Video - Floating PiP */
@@ -74,23 +63,20 @@
         position: absolute;
         bottom: 100px;
         right: 16px;
-        width: 100px;
-        height: 150px;
+        width: 90px;
+        height: 135px;
         border-radius: 12px;
-        border: 2px solid rgba(255,255,255,0.3);
+        border: 2px solid rgba(255,255,255,0.2);
         overflow: hidden;
         z-index: 10;
         background: #222;
-        box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        display: none; /* Hidden until local video is available */
     }
     #localVideo {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        background: #333;
         transform: scaleX(-1); /* Mirror local video for self-view */
     }
 
@@ -102,53 +88,46 @@
         right: 0;
         display: flex;
         justify-content: center;
-        gap: 24px;
+        gap: 20px;
         z-index: 20;
         padding-bottom: env(safe-area-inset-bottom);
     }
     .control-btn {
-        width: 60px;
-        height: 60px;
+        width: 56px;
+        height: 56px;
         border-radius: 50%;
         border: none;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow: 0 6px 12px rgba(0,0,0,0.4);
-        transition: all 0.2s;
-        font-size: 26px;
-        background: rgba(0,0,0,0.4);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        transition: transform 0.1s;
+        font-size: 24px;
     }
-    .control-btn:active { 
-        transform: scale(0.92); 
-    }
-    .control-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
+    .control-btn:active { transform: scale(0.95); }
     
     .btn-normal { 
-        background: rgba(255,255,255,0.15); 
+        background: rgba(255,255,255,0.9); 
+        color: #000; 
     }
     .btn-muted { 
-        background: rgba(255,50,50,0.3); 
+        background: rgba(255,255,255,0.3); 
+        color: #fff; 
         position: relative; 
     }
+    /* Strike-through for muted state */
     .btn-muted::before { 
         content: ''; 
         position: absolute; 
         width: 70%; 
-        height: 3px; 
+        height: 2px; 
         background: #fff; 
-        transform: rotate(-45deg);
-        border-radius: 2px;
+        transform: rotate(-45deg); 
     }
     .btn-leave { 
         background: #ff3b30; 
-        transform: rotate(135deg);
+        color: white; 
     }
 
     /* --- STATUS & FOOTER --- */
@@ -157,23 +136,22 @@
         top: 0;
         left: 0;
         right: 0;
-        padding: 12px;
-        padding-top: max(12px, env(safe-area-inset-top));
+        padding: 8px;
+        padding-top: max(8px, env(safe-area-inset-top));
         text-align: center;
-        font-size: 14px;
-        color: rgba(255,255,255,0.9);
-        background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+        font-size: 13px;
+        color: rgba(255,255,255,0.7);
+        background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
         z-index: 15;
         pointer-events: none;
-        font-weight: 500;
     }
     #footer {
         position: absolute;
-        bottom: 10px;
+        bottom: 5px;
         width: 100%;
         text-align: center;
-        font-size: 12px;
-        color: rgba(255,255,255,0.5);
+        font-size: 10px;
+        color: rgba(255,255,255,0.4);
         z-index: 5;
         padding-bottom: env(safe-area-inset-bottom);
     }
@@ -200,45 +178,27 @@
         margin: 0 0 12px 0; 
         font-weight: 600; 
         color: white;
-        font-size: 22px;
     }
     .modal-content p { 
         color: #aaa; 
         margin-bottom: 24px; 
-        font-size: 16px; 
-        line-height: 1.4;
+        font-size: 15px; 
     }
     #joinBtn {
         width: 100%;
-        padding: 18px;
+        padding: 16px;
         border-radius: 14px;
         border: none;
         background: #0A84FF;
         color: white;
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s;
-    }
-    #joinBtn:hover { 
-        background: #007AFF; 
     }
     #joinBtn:disabled { 
         opacity: 0.5; 
         cursor: not-allowed;
     }
-
-    /* Connection indicators */
-    .connection-indicator {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 8px;
-    }
-    .connected { background: #4CD964; }
-    .connecting { background: #FFCC00; }
-    .disconnected { background: #FF3B30; }
 </style>
 </head>
 
@@ -246,21 +206,18 @@
 
 <div id="permissionModal">
     <div class="modal-content">
-        <h3>Video Call</h3>
-        <p>Allow access to your camera and microphone to start the video call.</p>
+        <h3>Ready to join?</h3>
+        <p>We need access to your camera and microphone to start the video call.</p>
         <button id="joinBtn">Join Call</button>
     </div>
 </div>
 
 <div id="app-container">
-    <div id="status-bar">
-        <span class="connection-indicator disconnected"></span>
-        <span id="status-text">Ready to connect...</span>
-    </div>
+    <div id="status-bar">Ready to connect...</div>
 
     <div id="remoteVideoWrapper">
-        <div class="placeholder-text">Waiting for other participants...</div>
-        <video id="remoteVideo" autoplay playsinline></video>
+        <div class="placeholder-text">Waiting for others to join...</div>
+        <video id="remoteVideo" autoplay playsinline muted></video>
     </div>
     
     <div id="localVideoWrapper">
@@ -273,125 +230,83 @@
         <button id="camBtn" class="control-btn btn-normal">📷</button>
     </div>
 
-    <div id="footer">TAME Video Chat</div>
+    <div id="footer">Developed by TAME</div>
 </div>
 
 <script>
     // ==============================
-    // 1. INITIALIZATION & VARIABLES
+    // 1. SETUP & LOGGING
     // ==============================
-    const statusEl = document.getElementById("status-text");
-    const statusIndicator = document.querySelector('.connection-indicator');
+    const statusEl = document.getElementById("status-bar");
     const modal = document.getElementById("permissionModal");
     const joinBtn = document.getElementById("joinBtn");
-    const localVideoEl = document.getElementById("localVideo");
-    const remoteVideoEl = document.getElementById("remoteVideo");
-    const placeholderText = document.querySelector(".placeholder-text");
     const localVideoWrapper = document.getElementById("localVideoWrapper");
-    const remoteVideoWrapper = document.getElementById("remoteVideoWrapper");
+    const placeholderText = document.querySelector(".placeholder-text");
     
+    function log(msg, isError = false) {
+        console.log(msg);
+        statusEl.textContent = msg;
+        if (isError) {
+            statusEl.style.color = '#ff3b30';
+            statusEl.style.fontWeight = 'bold';
+        } else {
+            statusEl.style.color = 'rgba(255,255,255,0.7)';
+            statusEl.style.fontWeight = 'normal';
+        }
+    }
+
+    // Initialize Telegram Web App
+    if (window.Telegram?.WebApp) {
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
+        Telegram.WebApp.enableClosingConfirmation();
+        log("Telegram Web App initialized");
+    }
+
     // Configuration
     const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud";
     let room = null;
+    let micOn = true;
+    let camOn = true;
     let localStream = null;
-    let micEnabled = true;
-    let camEnabled = true;
-    let isConnecting = false;
+    let remoteParticipants = new Map(); // Track remote participants
 
     // ==============================
-    // 2. UTILITY FUNCTIONS
+    // 2. PERMISSION & JOIN HANDLER
     // ==============================
-    function updateStatus(msg, type = 'info') {
-        console.log(`[${type.toUpperCase()}] ${msg}`);
-        statusEl.textContent = msg;
-        
-        switch(type) {
-            case 'connected':
-                statusIndicator.className = 'connection-indicator connected';
-                statusEl.style.color = 'rgba(255,255,255,0.9)';
-                break;
-            case 'error':
-                statusIndicator.className = 'connection-indicator disconnected';
-                statusEl.style.color = '#ff3b30';
-                break;
-            case 'warning':
-                statusIndicator.className = 'connection-indicator connecting';
-                statusEl.style.color = '#FFCC00';
-                break;
-            default:
-                statusIndicator.className = 'connection-indicator connecting';
-                statusEl.style.color = 'rgba(255,255,255,0.9)';
-        }
-    }
-
-    function updateButtonStates() {
-        const micBtn = document.getElementById("micBtn");
-        const camBtn = document.getElementById("camBtn");
-        
-        // Update microphone button
-        if (micEnabled) {
-            micBtn.classList.remove("btn-muted");
-            micBtn.classList.add("btn-normal");
-            micBtn.innerHTML = "🎤";
-        } else {
-            micBtn.classList.remove("btn-normal");
-            micBtn.classList.add("btn-muted");
-            micBtn.innerHTML = "🎤";
-        }
-        
-        // Update camera button
-        if (camEnabled) {
-            camBtn.classList.remove("btn-muted");
-            camBtn.classList.add("btn-normal");
-            camBtn.innerHTML = "📷";
-            localVideoWrapper.style.display = 'flex';
-        } else {
-            camBtn.classList.remove("btn-normal");
-            camBtn.classList.add("btn-muted");
-            camBtn.innerHTML = "📷";
-            localVideoWrapper.style.display = 'none';
-        }
-    }
-
-    // ==============================
-    // 3. PERMISSION & JOIN HANDLER
-    // ==============================
-    joinBtn.onclick = async () => {
-        if (isConnecting) return;
-        
-        isConnecting = true;
+    joinBtn.onclick = async function() {
         joinBtn.disabled = true;
-        joinBtn.textContent = "Connecting...";
-        updateStatus("Requesting camera and microphone...", 'warning');
+        joinBtn.textContent = "Requesting access...";
+        log("Requesting camera and microphone permissions...");
         
         try {
-            // Request camera and microphone access with better constraints
-            localStream = await navigator.mediaDevices.getUserMedia({
+            // Request camera and microphone access with echo cancellation
+            const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true,
-                    channelCount: 2
+                    googEchoCancellation: true,
+                    googNoiseSuppression: true,
+                    googAutoGainControl: true
                 },
                 video: {
-                    width: { ideal: 640, min: 320, max: 1280 },
-                    height: { ideal: 480, min: 240, max: 720 },
-                    frameRate: { ideal: 24, min: 15 },
-                    facingMode: 'user',
-                    aspectRatio: 4/3
+                    width: { ideal: 640, min: 320 },
+                    height: { ideal: 480, min: 240 },
+                    frameRate: { ideal: 24 },
+                    facingMode: 'user'
                 }
             });
             
-            // Show local video preview immediately
-            localVideoEl.srcObject = localStream;
-            localVideoWrapper.style.display = 'flex';
+            log("Permissions granted");
             
-            // Play local video (muted as required by browsers)
-            await localVideoEl.play().catch(e => {
-                console.warn("Local video play warning:", e);
-            });
+            // Store the stream for later use
+            localStream = stream;
             
-            updateStatus("Permissions granted", 'connected');
+            // Show local preview
+            const localVideo = document.getElementById("localVideo");
+            localVideo.srcObject = stream;
+            localVideoWrapper.style.display = 'block';
             
             // Hide modal and connect to LiveKit
             modal.style.display = "none";
@@ -399,30 +314,22 @@
             
         } catch (error) {
             console.error("Permission error:", error);
-            isConnecting = false;
-            
-            let errorMsg = "Could not access camera/microphone. ";
-            if (error.name === 'NotAllowedError') {
-                errorMsg = "Please allow camera & microphone access in your browser settings.";
-            } else if (error.name === 'NotFoundError') {
-                errorMsg = "No camera or microphone found. Please check your device.";
-            } else if (error.name === 'NotReadableError') {
-                errorMsg = "Device is in use by another application.";
-            } else if (error.name === 'OverconstrainedError') {
-                errorMsg = "Cannot satisfy camera constraints. Try different settings.";
-            } else {
-                errorMsg = `Error: ${error.message}`;
-            }
-            
-            updateStatus(errorMsg, 'error');
+            log(`Permission error: ${error.message}`, true);
             joinBtn.disabled = false;
             joinBtn.textContent = "Try Again";
-            modal.style.display = "flex";
+            
+            if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                document.querySelector(".modal-content p").textContent = "No camera or microphone found. Please check your device.";
+            } else if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                document.querySelector(".modal-content p").textContent = "Permission denied. Please allow camera and microphone access.";
+            } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+                document.querySelector(".modal-content p").textContent = "Device is busy or not accessible. Please close other apps using the camera.";
+            }
         }
     };
 
     // ==============================
-    // 4. LIVEKIT CONNECTION - FIXED VERSION
+    // 3. FIXED LIVEKIT CONNECTION
     // ==============================
     async function connectToLiveKit() {
         // Get token from URL
@@ -430,208 +337,196 @@
         const token = urlParams.get("token");
         
         if (!token) {
-            updateStatus("Error: No connection token provided", 'error');
+            log("Error: No token found in URL", true);
             modal.style.display = "flex";
             joinBtn.disabled = false;
             joinBtn.textContent = "Join Call";
-            isConnecting = false;
+            document.querySelector(".modal-content p").textContent = "Missing connection token. Please check the link.";
             return;
         }
 
-        updateStatus("Connecting to video server...", 'warning');
+        log("Connecting to video server...");
 
         try {
-            // Create room with proper configuration
+            // Create room instance
             room = new LivekitClient.Room({
                 adaptiveStream: true,
                 dynacast: true,
                 videoCaptureDefaults: {
-                    resolution: LivekitClient.VideoPresets.h540.resolution,
-                    facingMode: 'user'
+                    resolution: LivekitClient.VideoPresets.h540.resolution
                 },
                 publishDefaults: {
                     videoCodec: 'vp8',
                     dtx: true,
-                    simulcast: true,
+                    red: true,
                     videoEncoding: {
-                        maxBitrate: 300000,
-                        maxFramerate: 24
+                        maxBitrate: 300000
                     }
                 }
             });
 
-            // ==============================
-            // EVENT HANDLERS
-            // ==============================
+            // ====================================
+            // FIXED EVENT HANDLERS
+            // ====================================
 
             // When connected to room
             room.on(LivekitClient.RoomEvent.Connected, () => {
-                updateStatus("Connected to room", 'connected');
-                console.log("Connected to room, local identity:", room.localParticipant.identity);
+                log("Connected to room");
                 
-                // Publish local tracks from our stream
-                if (localStream) {
-                    publishLocalTracks(localStream);
-                }
+                // Publish local tracks
+                publishLocalTracks();
             });
 
-            // When local track is published (YOUR VIDEO)
-            room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
-                console.log("Local track published:", publication.kind);
-                
-                if (publication.kind === 'video') {
-                    const track = publication.track;
-                    
-                    // FIX: Use track.attach() for proper LiveKit integration
-                    track.attach(localVideoEl);
-                    
-                    // Ensure local video wrapper stays visible
-                    localVideoWrapper.style.display = 'flex';
-                    
-                    // Play the video
-                    localVideoEl.play().catch(e => {
-                        console.warn("Local video play error:", e);
-                    });
-                }
-            });
-
-            // When subscribed to remote track (OTHER USER'S VIDEO)
+            // When track is subscribed (REMOTE VIDEO)
             room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-                console.log(`Subscribed to ${participant.identity}'s ${track.kind} track`);
+                console.log(`Subscribed to ${participant.identity}'s ${track.kind}`);
                 
                 if (track.kind === "video") {
-                    // Hide placeholder
+                    const remoteVideo = document.getElementById("remoteVideo");
+                    const placeholderText = document.querySelector(".placeholder-text");
+                    
+                    // FIX 1: Use track.attach() method for proper LiveKit integration
+                    track.attach(remoteVideo);
+                    
+                    // Show remote video and hide placeholder
+                    remoteVideo.style.display = 'block';
                     placeholderText.style.display = 'none';
                     
-                    // FIX: Use track.attach() instead of srcObject
-                    track.attach(remoteVideoEl);
-                    
-                    // Play the video (muted if autoplay blocked)
-                    remoteVideoEl.play().catch(e => {
-                        console.log("Remote video autoplay blocked, trying muted...");
-                        remoteVideoEl.muted = true;
-                        remoteVideoEl.play();
+                    // Play the video (muted initially if needed)
+                    remoteVideo.play().catch(e => {
+                        console.log("Remote video play blocked, trying muted...");
+                        remoteVideo.muted = true;
+                        remoteVideo.play();
                     });
                     
-                    updateStatus(`Connected to ${participant.identity || 'user'}`, 'connected');
-                    
-                } else if (track.kind === "audio") {
-                    // Create audio element for remote audio
-                    const audioEl = new Audio();
-                    audioEl.autoplay = true;
-                    
-                    // FIX: Attach audio track properly
-                    track.attach(audioEl);
-                    
-                    // Add to DOM (hidden)
-                    audioEl.style.display = 'none';
-                    document.body.appendChild(audioEl);
-                    
-                    audioEl.play().catch(e => {
-                        console.log("Audio autoplay blocked:", e);
+                    // Store participant info
+                    remoteParticipants.set(participant.sid, {
+                        identity: participant.identity,
+                        videoTrack: track
                     });
+                    
+                    log(`Video from ${participant.identity} is now visible`);
+                }
+                
+                // FIX 2: DO NOT create separate audio elements for remote audio
+                // LiveKit handles audio automatically through the room's audio context
+                // This fixes the echo issue
+                if (track.kind === "audio") {
+                    // LiveKit automatically plays audio through its internal audio context
+                    // We don't need to create additional audio elements
+                    console.log(`Audio from ${participant.identity} is active`);
                 }
             });
 
-            // When remote track is unsubscribed
+            // When track is unsubscribed
             room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-                console.log(`Unsubscribed from ${participant.identity}'s ${track.kind}`);
-                
                 if (track.kind === "video") {
-                    // Detach track from video element
-                    track.detach(remoteVideoEl);
+                    const remoteVideo = document.getElementById("remoteVideo");
+                    const placeholderText = document.querySelector(".placeholder-text");
                     
-                    // Show placeholder
-                    remoteVideoEl.srcObject = null;
-                    placeholderText.style.display = 'block';
-                    placeholderText.textContent = `${participant.identity || 'User'} disconnected`;
+                    // Detach the track
+                    track.detach(remoteVideo);
+                    
+                    // Show placeholder if no other participants
+                    setTimeout(() => {
+                        if (room.remoteParticipants.size === 0) {
+                            remoteVideo.style.display = 'none';
+                            placeholderText.style.display = 'block';
+                            placeholderText.textContent = 'Waiting for others...';
+                        }
+                    }, 100);
+                    
+                    // Remove participant from map
+                    remoteParticipants.delete(participant.sid);
+                }
+            });
+
+            // When local track is published
+            room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
+                console.log(`Local ${publication.kind} published`);
+                
+                if (publication.kind === 'video') {
+                    const localVideo = document.getElementById("localVideo");
+                    
+                    // FIX 3: Keep showing local preview from our original stream
+                    // Don't attach the LiveKit track to avoid duplication
+                    localVideoWrapper.style.display = 'block';
                 }
             });
 
             // Participant connected
             room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
-                console.log(`${participant.identity} joined`);
-                updateStatus(`${participant.identity} joined`, 'connected');
+                log(`${participant.identity} joined`);
             });
 
             // Participant disconnected
             room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
-                console.log(`${participant.identity} left`);
-                updateStatus(`${participant.identity} left`, 'warning');
+                log(`${participant.identity} left`);
                 
-                // Show placeholder if this was the only remote participant
-                setTimeout(() => {
-                    if (room.remoteParticipants.size === 0) {
-                        placeholderText.style.display = 'block';
-                        placeholderText.textContent = 'Waiting for others...';
-                    }
-                }, 1000);
+                // Remove participant from map
+                remoteParticipants.delete(participant.sid);
+                
+                // Show placeholder if no participants left
+                if (room.remoteParticipants.size === 0) {
+                    const remoteVideo = document.getElementById("remoteVideo");
+                    const placeholderText = document.querySelector(".placeholder-text");
+                    
+                    remoteVideo.style.display = 'none';
+                    placeholderText.style.display = 'block';
+                    placeholderText.textContent = 'Waiting for others...';
+                }
             });
 
             // Connection state changes
             room.on(LivekitClient.RoomEvent.ConnectionStateChanged, (state) => {
-                console.log("Connection state changed to:", state);
-                
                 if (state === 'connected') {
-                    updateStatus("Call Active", 'connected');
-                    isConnecting = false;
+                    log("Call Active ✓");
+                    updateControlStates();
                 } else if (state === 'connecting') {
-                    updateStatus("Connecting...", 'warning');
+                    log("Connecting...");
                 } else if (state === 'reconnecting') {
-                    updateStatus("Reconnecting...", 'warning');
+                    log("Reconnecting...");
                 } else if (state === 'disconnected') {
                     handleLeave();
                 }
             });
 
-            // Track mute/unmute events
-            room.on(LivekitClient.RoomEvent.TrackMuted, (publication, participant) => {
-                console.log(`${participant.identity}'s ${publication.kind} muted`);
-            });
-
-            room.on(LivekitClient.RoomEvent.TrackUnmuted, (publication, participant) => {
-                console.log(`${participant.identity}'s ${publication.kind} unmuted`);
-            });
-
-            // ==============================
+            // ====================================
             // CONNECT TO LIVEKIT
-            // ==============================
+            // ====================================
             await room.connect(LIVEKIT_URL, token, {
                 autoSubscribe: true,
-                maxRetries: 3,
-                timeout: 10000
             });
             
-            updateStatus("Ready for video call", 'connected');
-            updateButtonStates();
+            log("Connected to room");
 
         } catch (error) {
             console.error("LiveKit connection error:", error);
-            updateStatus(`Connection failed: ${error.message}`, 'error');
+            log(`Connection failed: ${error.message}`, true);
+            
+            modal.style.display = "flex";
+            joinBtn.disabled = false;
+            joinBtn.textContent = "Retry Connection";
+            document.querySelector(".modal-content p").textContent = "Could not connect to server. Please check your internet and try again.";
             
             // Clean up
             if (room) {
                 room.disconnect();
                 room = null;
             }
-            
-            // Show modal again
-            modal.style.display = "flex";
-            joinBtn.disabled = false;
-            joinBtn.textContent = "Retry Connection";
-            isConnecting = false;
-            document.querySelector(".modal-content p").textContent = 
-                "Connection failed. Please check your internet and try again.";
         }
     }
 
     // Publish local tracks
-    async function publishLocalTracks(stream) {
+    async function publishLocalTracks() {
+        if (!room || !localStream) return;
+        
         try {
-            const audioTrack = stream.getAudioTracks()[0];
-            const videoTrack = stream.getVideoTracks()[0];
+            const audioTrack = localStream.getAudioTracks()[0];
+            const videoTrack = localStream.getVideoTracks()[0];
             
-            if (audioTrack && micEnabled) {
+            // Publish audio track
+            if (audioTrack && micOn) {
                 await room.localParticipant.publishTrack(audioTrack, {
                     name: 'microphone',
                     source: LivekitClient.Track.Source.Microphone,
@@ -639,7 +534,8 @@
                 console.log("Published audio track");
             }
             
-            if (videoTrack && camEnabled) {
+            // Publish video track
+            if (videoTrack && camOn) {
                 await room.localParticipant.publishTrack(videoTrack, {
                     name: 'camera',
                     source: LivekitClient.Track.Source.Camera,
@@ -649,64 +545,118 @@
             
         } catch (error) {
             console.error("Error publishing tracks:", error);
-            updateStatus("Error publishing media", 'error');
+            log("Error publishing media", true);
         }
     }
 
     // ==============================
-    // 5. CONTROL BUTTONS
+    // 4. CONTROLS
     // ==============================
-    document.getElementById("micBtn").onclick = async () => {
-        if (!room) return;
+    const micBtn = document.getElementById("micBtn");
+    const camBtn = document.getElementById("camBtn");
+    const leaveBtn = document.getElementById("leaveBtn");
+
+    function updateControlStates() {
+        // Update microphone button
+        if (micOn) {
+            micBtn.className = "control-btn btn-normal";
+            micBtn.textContent = "🎤";
+        } else {
+            micBtn.className = "control-btn btn-muted";
+            micBtn.textContent = "🎤";
+        }
+        
+        // Update camera button
+        if (camOn) {
+            camBtn.className = "control-btn btn-normal";
+            camBtn.textContent = "📷";
+            localVideoWrapper.style.display = 'block';
+            
+            // Restart camera if needed
+            if (room && localStream) {
+                const videoTrack = localStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.enabled = true;
+                    room.localParticipant.setCameraEnabled(true).catch(console.error);
+                }
+            }
+        } else {
+            camBtn.className = "control-btn btn-muted";
+            camBtn.textContent = "📷";
+            localVideoWrapper.style.display = 'none';
+            
+            // Stop camera if needed
+            if (room && localStream) {
+                const videoTrack = localStream.getVideoTracks()[0];
+                if (videoTrack) {
+                    videoTrack.enabled = false;
+                    room.localParticipant.setCameraEnabled(false).catch(console.error);
+                }
+            }
+        }
+    }
+
+    // Microphone toggle
+    micBtn.onclick = async () => {
+        if (!room || !localStream) return;
         
         try {
-            if (micEnabled) {
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (!audioTrack) return;
+            
+            if (micOn) {
+                // Mute microphone
+                audioTrack.enabled = false;
                 await room.localParticipant.setMicrophoneEnabled(false);
-                micEnabled = false;
-                updateStatus("Microphone muted", 'warning');
+                micOn = false;
+                log("Microphone muted");
             } else {
+                // Unmute microphone
+                audioTrack.enabled = true;
                 await room.localParticipant.setMicrophoneEnabled(true);
-                micEnabled = true;
-                updateStatus("Microphone unmuted", 'connected');
+                micOn = true;
+                log("Microphone unmuted");
             }
-            updateButtonStates();
+            updateControlStates();
         } catch (error) {
-            console.error("Error toggling microphone:", error);
-            updateStatus("Error with microphone", 'error');
+            console.error("Microphone toggle error:", error);
+            log("Failed to toggle microphone", true);
         }
     };
 
-    document.getElementById("camBtn").onclick = async () => {
-        if (!room) return;
+    // Camera toggle
+    camBtn.onclick = async () => {
+        if (!room || !localStream) return;
         
         try {
-            if (camEnabled) {
+            const videoTrack = localStream.getVideoTracks()[0];
+            if (!videoTrack) return;
+            
+            if (camOn) {
+                // Turn off camera
+                videoTrack.enabled = false;
                 await room.localParticipant.setCameraEnabled(false);
-                camEnabled = false;
-                updateStatus("Camera off", 'warning');
+                camOn = false;
+                log("Camera off");
             } else {
+                // Turn on camera
+                videoTrack.enabled = true;
                 await room.localParticipant.setCameraEnabled(true);
-                camEnabled = true;
-                updateStatus("Camera on", 'connected');
+                camOn = true;
+                log("Camera on");
             }
-            updateButtonStates();
+            updateControlStates();
         } catch (error) {
-            console.error("Error toggling camera:", error);
-            updateStatus("Error with camera", 'error');
+            console.error("Camera toggle error:", error);
+            log("Failed to toggle camera", true);
         }
     };
 
-    document.getElementById("leaveBtn").onclick = () => {
-        if (confirm("End the video call?")) {
-            handleLeave();
-        }
-    };
+    // Leave call
+    leaveBtn.onclick = handleLeave;
 
-    // ==============================
-    // 6. CLEANUP FUNCTIONS
-    // ==============================
     function handleLeave() {
-        updateStatus("Ending call...", 'warning');
+        log("Leaving call...");
         
         // Stop all media tracks
         if (localStream) {
@@ -714,81 +664,48 @@
                 track.stop();
                 track.enabled = false;
             });
-            localStream = null;
         }
         
-        // Clear video elements
-        localVideoEl.srcObject = null;
-        remoteVideoEl.srcObject = null;
-        
-        // Disconnect from LiveKit
+        // Disconnect from room
         if (room) {
             room.disconnect();
             room = null;
         }
         
-        // Reset states
-        micEnabled = true;
-        camEnabled = true;
-        isConnecting = false;
+        // Clear video elements
+        const localVideo = document.getElementById("localVideo");
+        const remoteVideo = document.getElementById("remoteVideo");
+        if (localVideo) localVideo.srcObject = null;
+        if (remoteVideo) remoteVideo.srcObject = null;
         
         // Close or reload
-        setTimeout(() => {
-            if (window.Telegram?.WebApp) {
-                Telegram.WebApp.close();
-            } else {
-                window.location.reload();
-            }
-        }, 500);
+        if (window.Telegram?.WebApp) {
+            Telegram.WebApp.close();
+        } else {
+            window.location.reload();
+        }
     }
 
-    // ==============================
-    // 7. EVENT LISTENERS & INIT
-    // ==============================
+    // Initial control states
+    updateControlStates();
+
+    // Handle page visibility changes
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            updateStatus("Call is running in background", 'warning');
-        } else if (room) {
-            updateStatus("Call Active", 'connected');
+        if (document.hidden && room) {
+            log("Call minimized");
         }
     });
 
-    // Handle page unload
+    // Prevent context menu on long press
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // Clean up on page unload
     window.addEventListener('beforeunload', () => {
         if (room) {
             room.disconnect();
         }
-    });
-
-    // Prevent context menu
-    document.addEventListener('contextmenu', (e) => e.preventDefault());
-
-    // Error handling
-    window.addEventListener('error', (e) => {
-        console.error('Global error:', e.error);
-        updateStatus(`Error: ${e.message}`, 'error');
-    });
-
-    // Initialize button states
-    updateButtonStates();
-
-    // Auto-join if token is present in URL (for testing)
-    window.addEventListener('load', () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get("token");
-        const autoJoin = urlParams.get("autojoin");
-        
-        if (token && autoJoin === "true") {
-            console.log("Auto-joining with token...");
-            joinBtn.click();
-        }
-        
-        // Initialize Telegram Web App
-        if (window.Telegram?.WebApp) {
-            Telegram.WebApp.ready();
-            Telegram.WebApp.expand();
-            Telegram.WebApp.enableClosingConfirmation();
-            updateStatus("Telegram Web App ready", 'connected');
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
         }
     });
 </script>
