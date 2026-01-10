@@ -100,7 +100,7 @@
     }
     .control-btn:active { transform: scale(0.95); }
     
-    /* Icons (using text for simplicity, replace with SVGs if needed) */
+    /* Icons */
     .icon-mic::after { content: '🎤'; font-size: 24px; }
     .icon-cam::after { content: '📷'; font-size: 24px; }
     .icon-leave::after { content: '📞'; font-size: 24px; color: white; transform: rotate(135deg); }
@@ -187,7 +187,7 @@
 
     <div id="remoteVideoWrapper">
         <div class="placeholder-text">Waiting for others...</div>
-        <video id="remoteVideo" autoplay playsinline></video>
+        <video id="remoteVideo" autoplay playsinline muted></video>
     </div>
     
     <div id="localVideoWrapper">
@@ -212,7 +212,6 @@
     const modal = document.getElementById("permissionModal");
     const joinBtn = document.getElementById("joinBtn");
     
-    // Robust Error Logging to UI
     function log(msg, isError = false) {
         console.log(msg);
         statusEl.textContent = msg;
@@ -221,21 +220,19 @@
     }
     window.onerror = (msg) => log("Err: " + msg, true);
 
-    // Initialize Telegram
     if (window.Telegram?.WebApp) {
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
         Telegram.WebApp.enableClosingConfirmation();
     }
 
-    // Config
     const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud";
     let room;
     let micOn = true;
     let camOn = true;
 
     // ==============================
-    // 2. PERMISSION GESTURE (The crucial part that is working)
+    // 2. PERMISSION GESTURE
     // ==============================
     joinBtn.onclick = async function() {
         joinBtn.disabled = true;
@@ -246,7 +243,6 @@
             // 1. Trigger gesture requirement
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
-                // Low-bandwidth constraints
                 video: { width: { ideal: 320 }, height: { ideal: 240 }, facingMode: 'user' }
             });
             // 2. Release immediately
@@ -257,15 +253,14 @@
             connectToLiveKit();
 
         } catch (e) {
-            log("Permission denied. Please allow access.", true);
+            log("Permission denied. " + e.message, true);
             joinBtn.disabled = false;
             joinBtn.textContent = "Try Again";
-            alert("Camera/Mic access denied. Please check browser settings.");
         }
     };
 
     // ==============================
-    // 3. CONNECTION & VIDEO HANDLING (Fixed logic here)
+    // 3. CONNECTION & VIDEO HANDLING
     // ==============================
     async function connectToLiveKit() {
         const token = new URLSearchParams(location.search).get("token");
@@ -274,66 +269,66 @@
         log("Connecting to server...");
 
         try {
-            // Init Client
             room = new LivekitClient.Room({
                 adaptiveStream: true,
                 dynacast: true,
-                videoCaptureDefaults: {
-                    resolution: LivekitClient.VideoPresets.h360.resolution
-                },
-                 publishDefaults: {
-                    videoCodec: 'vp8',
-                    dtx: true, // Saves audio bandwidth when silent
-                }
+                videoCaptureDefaults: { resolution: LivekitClient.VideoPresets.h360.resolution },
+                publishDefaults: { videoCodec: 'vp8', dtx: true }
             });
 
-            // --- EVENT HANDLERS FOR VIDEO ATTACHMENT ---
-
-            // Handle Remote Video Joining
+            // --- REMOTE VIDEO HANDLING ---
             room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
                 log(`Linked with ${participant.identity}`);
+                
                 if (track.kind === "video") {
                     const remoteEl = document.getElementById("remoteVideo");
+                    // CRITICAL FIX: Mute the video element itself so browser allows autoplay
+                    // (Audio comes from a separate track, so you will still hear them)
+                    remoteEl.muted = true; 
+                    
                     track.attach(remoteEl);
-                    // Ensure visibility in case CSS hid it previously
+                    remoteEl.play().catch(e => console.error("Remote Play Error:", e));
                     remoteEl.style.display = 'block'; 
                 }
+                
                 if (track.kind === "audio") {
-                    track.attach(); // Auto-creates hidden audio el
+                    track.attach(); // Audio tracks create their own hidden element
                 }
             });
 
-            // Handle Remote Video Leaving/Muting
-             room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication) => {
-                 track.detach();
-                 if (track.kind === 'video') {
-                     // Optional: Show placeholder again if needed
-                 }
-             });
+            room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication) => {
+                track.detach();
+            });
 
-            // Handle Local Video Publishing (The fix for local video)
+            // --- LOCAL VIDEO HANDLING ---
             room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
                 if (publication.kind === 'video') {
-                    log("Local video active");
                     const localEl = document.getElementById("localVideo");
                     publication.track.attach(localEl);
+                    localEl.play().catch(console.error);
                 }
             });
 
-            // Handle Connection States
             room.on(LivekitClient.RoomEvent.ConnectionStateChanged, (state) => {
                 if (state === 'connected') log("Connected");
-                if (state === 'reconnecting') log("Reconnecting (weak signal)...");
+                if (state === 'reconnecting') log("Reconnecting...");
                 if (state === 'disconnected') handleLeave();
             });
 
-
-            // --- CONNECT & PUBLISH ---
+            // --- CONNECT ---
             await room.connect(LIVEKIT_URL, token);
+            log("Publishing...");
+
+            // --- PUBLISH LOCAL TRACKS ---
+            const localTracks = await room.localParticipant.enableCameraAndMicrophone();
             
-            // This triggers the LocalTrackPublished event above
-            log("Publishing tracks...");
-            await room.localParticipant.enableCameraAndMicrophone();
+            // Fallback: manually attach if event missed
+            const videoTrack = localTracks.find(t => t.kind === 'video');
+            if (videoTrack) {
+                const localEl = document.getElementById("localVideo");
+                videoTrack.attach(localEl);
+                localEl.play().catch(console.error);
+            }
 
         } catch (e) {
             log("Connection Failed: " + e.message, true);
