@@ -1,322 +1,237 @@
+</html>
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TAME Video Chat</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #000; color: white; font-family: Arial, sans-serif; height: 100vh; }
-        #container { max-width: 100%; height: 100vh; padding: 10px; display: flex; flex-direction: column; }
-        #status { background: #333; padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align: center; }
-        #roomInfo { font-size: 12px; opacity: 0.8; text-align: center; }
-        #videos { flex: 1; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; }
-        video { width: 100%; max-width: 400px; height: 300px; background: #111; border-radius: 10px; object-fit: cover; }
-        .local { border: 3px solid #4CAF50; transform: scaleX(-1); }
-        .remote { border: 3px solid #2196F3; }
-        #waiting { text-align: center; padding: 20px; color: #aaa; }
-        #controls { display: flex; justify-content: center; gap: 10px; padding: 15px; background: rgba(0,0,0,0.8); border-radius: 10px; }
-        button { padding: 12px 20px; border: none; border-radius: 50px; font-size: 14px; cursor: pointer; min-width: 100px; }
-        #mic { background: #4CAF50; color: white; }
-        #cam { background: #2196F3; color: white; }
-        #end { background: #f44336; color: white; }
-        #footer { text-align: center; padding: 10px; margin-top: 10px; font-size: 12px; color: #888; }
-        .developer { color: #FF4081; font-weight: bold; letter-spacing: 1px; }
-        
-        /* Connection status */
-        .connected { color: #4CAF50; }
-        .connecting { color: #FF9800; }
-        .error { color: #f44336; }
-        
-        /* Permission modal */
-        #permissionModal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        
-        .modal-content {
-            background: #222;
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
-            max-width: 400px;
-            width: 90%;
-        }
-        
-        .modal-content h3 {
-            margin-bottom: 15px;
-            color: #4CAF50;
-        }
-        
-        #allowBtn {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            font-size: 16px;
-            cursor: pointer;
-            margin-top: 15px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TAME Video Chat</title>
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    background: #000;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+#status {
+    padding: 10px;
+    text-align: center;
+    background: #111;
+    font-size: 14px;
+}
+#roomInfo {
+    font-size: 11px;
+    text-align: center;
+    opacity: .7;
+}
+#videos {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+}
+video {
+    width: 48%;
+    max-width: 420px;
+    background: #111;
+    border-radius: 12px;
+    object-fit: cover;
+}
+.local {
+    transform: scaleX(-1);
+    border: 2px solid #4CAF50;
+}
+.remote {
+    border: 2px solid #2196F3;
+}
+#controls {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(0,0,0,.8);
+}
+button {
+    padding: 10px 18px;
+    border-radius: 25px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+}
+#permissionModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.modal {
+    background: #222;
+    padding: 25px;
+    border-radius: 15px;
+    text-align: center;
+    width: 90%;
+    max-width: 360px;
+}
+.modal h3 { margin-bottom: 10px; color: #4CAF50; }
+.modal button {
+    background: #4CAF50;
+    color: #fff;
+    font-size: 16px;
+}
+</style>
 </head>
+
 <body>
-    <!-- Permission Modal -->
-    <div id="permissionModal">
-        <div class="modal-content">
-            <h3>Camera & Microphone Access</h3>
-            <p>Click "Allow" to start video chat</p>
-            <button id="allowBtn">Allow Access</button>
-        </div>
-    </div>
 
-    <div id="container">
-        <div id="status">Loading video chat...</div>
-        <div id="roomInfo">Room: -</div>
-        
-        <div id="videos">
-            <video id="localVideo" autoplay muted playsinline class="local"></video>
-            <video id="remoteVideo" autoplay playsinline class="remote"></video>
-            <div id="waiting">Waiting for partner to join...</div>
-        </div>
-        
-        <div id="controls">
-            <button id="mic" onclick="toggleMic()">Mute</button>
-            <button id="cam" onclick="toggleCam()">Video</button>
-            <button id="end" onclick="leaveCall()">Leave</button>
-        </div>
-        
-        <div id="footer">
-            <span class="developer">Developed by TAME</span>
-        </div>
+<div id="permissionModal">
+    <div class="modal">
+        <h3>Camera & Microphone</h3>
+        <p>Tap allow to start video call</p>
+        <button id="allowBtn">Allow</button>
     </div>
+</div>
 
-    <script>
-        // SIMPLE FIXED VIDEO CHAT
-        // No complex LiveKit loading errors
-        
-        const LIVEKIT_URL = 'wss://video-20qatdd3.livekit.cloud';
-        let room = null;
-        let localVideo = document.getElementById('localVideo');
-        let remoteVideo = document.getElementById('remoteVideo');
-        let status = document.getElementById('status');
-        let roomInfo = document.getElementById('roomInfo');
-        let waiting = document.getElementById('waiting');
-        let permissionModal = document.getElementById('permissionModal');
-        let localStream = null;
-        let remoteStream = null;
-        
-        // Get token from URL
-        function getToken() {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.get('token');
+<div id="status">Waiting for permission…</div>
+<div id="roomInfo">Room: -</div>
+
+<div id="videos">
+    <video id="localVideo" autoplay muted playsinline class="local"></video>
+    <video id="remoteVideo" autoplay playsinline class="remote"></video>
+</div>
+
+<div id="controls">
+    <button id="micBtn">Mute</button>
+    <button id="camBtn">Video</button>
+    <button onclick="leaveCall()">Leave</button>
+</div>
+
+<script type="module">
+/* =====================================================
+   TELEGRAM + LOW BANDWIDTH SAFE LIVEKIT FRONTEND
+   ===================================================== */
+
+import {
+    Room,
+    RoomEvent,
+    VideoPresets
+} from "https://unpkg.com/livekit-client@1.15.6/dist/livekit-client.esm.min.js?module";
+
+const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud";
+
+let room;
+let micEnabled = true;
+let camEnabled = true;
+
+const statusEl = document.getElementById("status");
+const roomInfo = document.getElementById("roomInfo");
+const localVideo = document.getElementById("localVideo");
+const remoteVideo = document.getElementById("remoteVideo");
+const modal = document.getElementById("permissionModal");
+
+/* -------- Telegram WebApp safety -------- */
+if (window.Telegram?.WebApp) {
+    Telegram.WebApp.expand();
+    Telegram.WebApp.disableClosingConfirmation();
+}
+
+/* -------- Token from URL -------- */
+function getToken() {
+    return new URLSearchParams(location.search).get("token");
+}
+
+/* -------- Permission button -------- */
+document.getElementById("allowBtn").onclick = async () => {
+    modal.style.display = "none";
+    await startCall();
+};
+
+/* -------- Core connection logic -------- */
+async function startCall() {
+    const token = getToken();
+    if (!token) {
+        statusEl.textContent = "Missing token";
+        return;
+    }
+
+    statusEl.textContent = "Connecting…";
+
+    room = new Room({
+        adaptiveStream: true,
+        dynacast: true,
+        stopLocalTrackOnUnpublish: true,
+        publishDefaults: {
+            videoSimulcastLayers: [VideoPresets.h180],
+            videoCodec: "vp8"
         }
-        
-        // Ask for permissions
-        async function requestPermissions() {
-            try {
-                // Get media stream for local video
-                localStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 },
-                        frameRate: { ideal: 15 }
-                    },
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }
-                });
-                
-                // Display local video
-                localVideo.srcObject = localStream;
-                
-                // Hide permission modal
-                permissionModal.style.display = 'none';
-                
-                // Connect to room
-                connectToRoom();
-                
-                return true;
-            } catch (error) {
-                console.error('Permission error:', error);
-                status.innerHTML = '<span class="error">Error: Please allow camera & microphone access</span>';
-                return false;
-            }
+    });
+
+    room.on(RoomEvent.TrackSubscribed, track => {
+        if (track.kind === "video") {
+            track.attach(remoteVideo);
         }
-        
-        // Connect to LiveKit room
-        async function connectToRoom() {
-            const token = getToken();
-            if (!token) {
-                status.innerHTML = '<span class="error">Error: No token provided</span>';
-                return;
-            }
-            
-            status.innerHTML = '<span class="connecting">Connecting to video chat...</span>';
-            
-            try {
-                // Load LiveKit dynamically
-                const { Room, RoomEvent } = await import('https://unpkg.com/livekit-client@1.8.1/dist/livekit-client.esm.min.js');
-                
-                // Create room
-                room = new Room({
-                    adaptiveStream: true,
-                    dynacast: true,
-                    publishDefaults: {
-                        videoCodec: 'vp8',
-                        videoEncoding: {
-                            maxBitrate: 250000,
-                            maxFramerate: 15
-                        }
-                    }
-                });
-                
-                // Setup event listeners
-                setupRoomEvents(room, RoomEvent);
-                
-                // Connect to room
-                await room.connect(LIVEKIT_URL, token);
-                
-                // Update status
-                status.innerHTML = `<span class="connected">Connected to room: ${room.name}</span>`;
-                roomInfo.textContent = `Room: ${room.name}`;
-                
-                // Publish local tracks
-                if (localStream) {
-                    for (const track of localStream.getTracks()) {
-                        await room.localParticipant.publishTrack(track);
-                    }
-                }
-                
-            } catch (error) {
-                console.error('Connection error:', error);
-                status.innerHTML = `<span class="error">Connection failed: ${error.message}</span>`;
-            }
+        if (track.kind === "audio") {
+            const audio = document.createElement("audio");
+            audio.autoplay = true;
+            track.attach(audio);
         }
-        
-        // Setup room events
-        function setupRoomEvents(room, RoomEvent) {
-            // Track subscribed (remote user)
-            room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-                console.log('Remote track subscribed:', track.kind);
-                
-                if (track.kind === 'video') {
-                    waiting.style.display = 'none';
-                    remoteVideo.style.display = 'block';
-                    track.attach(remoteVideo);
-                }
-                
-                if (track.kind === 'audio') {
-                    const audioElement = new Audio();
-                    track.attach(audioElement);
-                    audioElement.play().catch(e => console.log('Audio play error:', e));
-                }
-            });
-            
-            // Participant connected
-            room.on(RoomEvent.ParticipantConnected, (participant) => {
-                console.log('Participant connected:', participant.identity);
-                waiting.style.display = 'none';
-            });
-            
-            // Participant disconnected
-            room.on(RoomEvent.ParticipantDisconnected, (participant) => {
-                console.log('Participant disconnected:', participant.identity);
-                remoteVideo.style.display = 'none';
-                waiting.style.display = 'block';
-            });
-            
-            // Connection state changed
-            room.on(RoomEvent.ConnectionStateChanged, (state) => {
-                console.log('Connection state:', state);
-                
-                if (state === 'connected') {
-                    status.innerHTML = '<span class="connected">Connected</span>';
-                } else if (state === 'connecting') {
-                    status.innerHTML = '<span class="connecting">Connecting...</span>';
-                } else if (state === 'disconnected') {
-                    status.innerHTML = '<span class="error">Disconnected</span>';
-                }
-            });
-        }
-        
-        // Toggle microphone
-        function toggleMic() {
-            if (!localStream) return;
-            
-            const audioTrack = localStream.getAudioTracks()[0];
-            if (audioTrack) {
-                audioTrack.enabled = !audioTrack.enabled;
-                const micBtn = document.getElementById('mic');
-                micBtn.textContent = audioTrack.enabled ? 'Mute' : 'Unmute';
-                micBtn.style.background = audioTrack.enabled ? '#4CAF50' : '#666';
-            }
-        }
-        
-        // Toggle camera
-        function toggleCam() {
-            if (!localStream) return;
-            
-            const videoTrack = localStream.getVideoTracks()[0];
-            if (videoTrack) {
-                videoTrack.enabled = !videoTrack.enabled;
-                const camBtn = document.getElementById('cam');
-                camBtn.textContent = videoTrack.enabled ? 'Video Off' : 'Video On';
-                camBtn.style.background = videoTrack.enabled ? '#2196F3' : '#666';
-                localVideo.style.display = videoTrack.enabled ? 'block' : 'none';
-            }
-        }
-        
-        // Leave call
-        function leaveCall() {
-            if (room) {
-                room.disconnect();
-            }
-            
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
-            
-            // Close window or go back
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                window.location.href = 'about:blank';
-            }
-        }
-        
-        // Initialize
-        document.getElementById('allowBtn').addEventListener('click', requestPermissions);
-        
-        // Auto-start if permissions already granted
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                // Try to get permissions without asking
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: true, 
-                    video: true 
-                });
-                
-                // Permissions already granted
-                stream.getTracks().forEach(track => track.stop());
-                permissionModal.style.display = 'none';
-                await requestPermissions();
-                
-            } catch (error) {
-                // Show permission modal
-                console.log('Showing permission modal...');
-            }
-        });
-    </script>
+    });
+
+    room.on(RoomEvent.TrackUnsubscribed, track => track.detach());
+
+    room.on(RoomEvent.ConnectionStateChanged, state => {
+        if (state === "connected") statusEl.textContent = "Connected";
+        if (state === "reconnecting") statusEl.textContent = "Reconnecting…";
+        if (state === "disconnected") statusEl.textContent = "Disconnected";
+    });
+
+    await room.connect(LIVEKIT_URL, token);
+
+    roomInfo.textContent = `Room: ${room.name}`;
+
+    /* LOW BANDWIDTH SAFE */
+    await room.localParticipant.setCameraEnabled(true, {
+        resolution: { width: 320, height: 240 },
+        frameRate: 12
+    });
+
+    await room.localParticipant.setMicrophoneEnabled(true);
+
+    room.localParticipant.videoTracks.forEach(pub => {
+        pub.track.attach(localVideo);
+    });
+}
+
+/* -------- Controls -------- */
+document.getElementById("micBtn").onclick = async () => {
+    micEnabled = !micEnabled;
+    await room.localParticipant.setMicrophoneEnabled(micEnabled);
+    document.getElementById("micBtn").textContent =
+        micEnabled ? "Mute" : "Unmute";
+};
+
+document.getElementById("camBtn").onclick = async () => {
+    camEnabled = !camEnabled;
+    await room.localParticipant.setCameraEnabled(camEnabled);
+    document.getElementById("camBtn").textContent =
+        camEnabled ? "Video" : "Video Off";
+};
+
+/* -------- Leave -------- */
+window.leaveCall = () => {
+    room?.disconnect();
+    if (window.Telegram?.WebApp) Telegram.WebApp.close();
+    else location.href = "about:blank";
+};
+</script>
+
 </body>
 </html>
