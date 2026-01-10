@@ -22,7 +22,7 @@
         flex-direction: column;
     }
 
-    /* --- MAIN VIDEO CONTAINER --- */
+    /* --- VIDEO LAYOUT --- */
     #app-container {
         position: relative;
         flex: 1;
@@ -31,13 +31,10 @@
         overflow: hidden;
     }
 
-    /* Remote Video - Full Screen Background */
+    /* Remote Video - Full Screen */
     #remoteVideoWrapper {
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        inset: 0;
         z-index: 0;
         display: flex;
         align-items: center;
@@ -45,8 +42,8 @@
         background: #111;
     }
     
-    /* IMPORTANT: The video element created by LiveKit needs to fill the container */
-    #remoteVideoWrapper video {
+    /* Force remote video to cover screen */
+    #remoteVideoWrapper video, #remoteVideo {
         width: 100%;
         height: 100%;
         object-fit: cover;
@@ -60,12 +57,12 @@
         pointer-events: none;
     }
 
-    /* Local Video - Floating PiP */
+    /* Local Video - Floating Picture-in-Picture */
     #localVideoWrapper {
         position: absolute;
         bottom: 100px;
         right: 16px;
-        width: 110px; /* Slightly wider for better aspect ratio */
+        width: 110px;
         height: 160px;
         border-radius: 12px;
         border: 2px solid rgba(255,255,255,0.2);
@@ -73,17 +70,17 @@
         z-index: 10;
         background: #222;
         box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        display: none; /* Hidden until local video is available */
+        display: none; /* Hidden until cam is allowed */
     }
     
-    #localVideoWrapper video {
+    #localVideo {
         width: 100%;
         height: 100%;
         object-fit: cover;
         transform: scaleX(-1); /* Mirror effect */
     }
 
-    /* --- CONTROLS OVERLAY --- */
+    /* --- CONTROLS --- */
     #controls-overlay {
         position: absolute;
         bottom: 30px;
@@ -110,34 +107,18 @@
     }
     .control-btn:active { transform: scale(0.95); }
     
-    .btn-normal { 
-        background: rgba(255,255,255,0.9); 
-        color: #000; 
-    }
-    .btn-muted { 
-        background: rgba(255,255,255,0.3); 
-        color: #fff; 
-        position: relative; 
-    }
+    .btn-normal { background: rgba(255,255,255,0.9); color: #000; }
+    .btn-muted { background: rgba(255,255,255,0.3); color: #fff; position: relative; }
     .btn-muted::before { 
-        content: ''; 
-        position: absolute; 
-        width: 70%; 
-        height: 2px; 
-        background: #fff; 
-        transform: rotate(-45deg); 
+        content: ''; position: absolute; width: 70%; height: 2px; 
+        background: #fff; transform: rotate(-45deg); 
     }
-    .btn-leave { 
-        background: #ff3b30; 
-        color: white; 
-    }
+    .btn-leave { background: #ff3b30; color: white; }
 
-    /* --- STATUS & FOOTER --- */
+    /* --- STATUS & UI --- */
     #status-bar {
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
+        top: 0; left: 0; right: 0;
         padding: 8px;
         padding-top: max(8px, env(safe-area-inset-top));
         text-align: center;
@@ -148,59 +129,28 @@
         pointer-events: none;
     }
     #footer {
-        position: absolute;
-        bottom: 5px;
-        width: 100%;
-        text-align: center;
-        font-size: 10px;
-        color: rgba(255,255,255,0.4);
-        z-index: 5;
-        padding-bottom: env(safe-area-inset-bottom);
+        position: absolute; bottom: 5px; width: 100%;
+        text-align: center; font-size: 10px; color: rgba(255,255,255,0.4);
+        z-index: 5; padding-bottom: env(safe-area-inset-bottom);
     }
 
-    /* --- MODAL --- */
+    /* --- PERMISSION MODAL --- */
     #permissionModal {
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.95);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+        display: flex; align-items: center; justify-content: center;
         z-index: 100;
     }
     .modal-content {
-        background: #1c1c1e;
-        padding: 32px 24px;
-        border-radius: 20px;
-        text-align: center;
-        width: 85%;
-        max-width: 320px;
+        background: #1c1c1e; padding: 32px 24px;
+        border-radius: 20px; text-align: center; width: 85%; max-width: 320px;
     }
-    .modal-content h3 { 
-        margin: 0 0 12px 0; 
-        font-weight: 600; 
-        color: white;
-    }
-    .modal-content p { 
-        color: #aaa; 
-        margin-bottom: 24px; 
-        font-size: 15px; 
-    }
+    .modal-content h3 { margin: 0 0 12px 0; font-weight: 600; color: white; }
+    .modal-content p { color: #aaa; margin-bottom: 24px; font-size: 15px; }
     #joinBtn {
-        width: 100%;
-        padding: 16px;
-        border-radius: 14px;
-        border: none;
-        background: #0A84FF;
-        color: white;
-        font-size: 17px;
-        font-weight: 600;
-        cursor: pointer;
+        width: 100%; padding: 16px; border-radius: 14px; border: none;
+        background: #0A84FF; color: white; font-size: 17px; font-weight: 600; cursor: pointer;
     }
-    #joinBtn:disabled { 
-        opacity: 0.5; 
-        cursor: not-allowed;
-    }
+    #joinBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
 </head>
 
@@ -208,21 +158,22 @@
 
 <div id="permissionModal">
     <div class="modal-content">
-        <h3>Ready to join?</h3>
-        <p>We need access to your camera and microphone to start the video call.</p>
-        <button id="joinBtn">Join Call</button>
+        <h3>Join Video Call</h3>
+        <p>Click below to start camera and microphone.</p>
+        <button id="joinBtn">Start Call</button>
     </div>
 </div>
 
 <div id="app-container">
-    <div id="status-bar">Ready to connect...</div>
+    <div id="status-bar">Waiting for permission...</div>
 
     <div id="remoteVideoWrapper">
         <div class="placeholder-text">Waiting for others to join...</div>
         </div>
     
     <div id="localVideoWrapper">
-        </div>
+        <video id="localVideo" autoplay muted playsinline></video>
+    </div>
 
     <div id="controls-overlay">
         <button id="micBtn" class="control-btn btn-normal">🎤</button>
@@ -234,197 +185,203 @@
 </div>
 
 <script>
-    // ==============================
-    // 1. SETUP & LOGGING
-    // ==============================
+    // ============================================
+    // CONFIG & SETUP
+    // ============================================
+    const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud";
     const statusEl = document.getElementById("status-bar");
-    const modal = document.getElementById("permissionModal");
-    const joinBtn = document.getElementById("joinBtn");
+    const localVideo = document.getElementById("localVideo");
     const localVideoWrapper = document.getElementById("localVideoWrapper");
     const remoteVideoWrapper = document.getElementById("remoteVideoWrapper");
     const placeholderText = document.querySelector(".placeholder-text");
-    
-    function log(msg, isError = false) {
-        console.log(msg);
-        statusEl.textContent = msg;
-        if (isError) {
-            statusEl.style.color = '#ff3b30';
-            statusEl.style.fontWeight = 'bold';
-        } else {
-            statusEl.style.color = 'rgba(255,255,255,0.7)';
-            statusEl.style.fontWeight = 'normal';
-        }
-    }
+    const joinBtn = document.getElementById("joinBtn");
+    const modal = document.getElementById("permissionModal");
 
-    if (window.Telegram?.WebApp) {
-        Telegram.WebApp.ready();
-        Telegram.WebApp.expand();
-        Telegram.WebApp.enableClosingConfirmation();
-    }
-
-    // Configuration
-    const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud";
     let room = null;
+    let localStream = null;
     let micOn = true;
     let camOn = true;
 
-    // We will store the tracks created during the "Join" phase here
-    let preJoinedTracks = [];
+    // Initialize Telegram
+    if (window.Telegram?.WebApp) {
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
+    }
 
-    // ==============================
-    // 2. CONNECTION & TRACK HANDLING
-    // ==============================
-    
+    // Helper for Status
+    function log(msg, isError = false) {
+        console.log(msg);
+        statusEl.textContent = msg;
+        statusEl.style.color = isError ? '#ff3b30' : 'rgba(255,255,255,0.7)';
+    }
+
+    // ============================================
+    // 1. MANUAL PERMISSIONS & LOCAL PREVIEW
+    // ============================================
     joinBtn.onclick = async function() {
         joinBtn.disabled = true;
-        joinBtn.textContent = "Connecting...";
-        
-        // 1. Get Token
-        const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get("token");
-        
-        if (!token) {
-            log("Error: Missing token", true);
-            joinBtn.disabled = false;
-            return;
-        }
+        joinBtn.textContent = "Accessing Camera...";
 
         try {
-            // 2. Create Local Tracks (Use LiveKit SDK instead of raw getUserMedia)
-            log("Acquiring camera...");
-            preJoinedTracks = await LivekitClient.createLocalTracks({
-                audio: { echoCancellation: true, noiseSuppression: true },
-                video: { facingMode: 'user', resolution: 'h360' }
+            // STEP 1: Get Native Browser Stream (Manual Way - Works best)
+            // This prevents the "Asking again and again" loop
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'user',
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                },
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
             });
 
-            // 3. Show Local Preview Immediately
-            const videoTrack = preJoinedTracks.find(t => t.kind === 'video');
-            if (videoTrack) {
-                // Attach to DOM
-                videoTrack.attach(localVideoWrapper);
-                localVideoWrapper.style.display = 'block';
-            }
-
+            // STEP 2: Show Local Video Immediately
+            localStream = stream;
+            localVideo.srcObject = stream;
+            localVideoWrapper.style.display = 'block';
+            
+            // Hide Modal
             modal.style.display = 'none';
-            await connectToRoom(token);
+            log("Camera ready. Connecting...");
+
+            // STEP 3: Connect to Server
+            connectToLiveKit();
 
         } catch (error) {
-            console.error("Join error:", error);
-            log("Access denied or device error", true);
+            console.error("Permission Error:", error);
+            log("Permission Denied. Check Settings.", true);
             joinBtn.textContent = "Try Again";
             joinBtn.disabled = false;
         }
     };
 
-    async function connectToRoom(token) {
-        log("Connecting to Server...");
+    // ============================================
+    // 2. LIVEKIT CONNECTION LOGIC
+    // ============================================
+    async function connectToLiveKit() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get("token");
 
-        room = new LivekitClient.Room({
-            adaptiveStream: true,
-            dynacast: true,
-            videoCaptureDefaults: { resolution: LivekitClient.VideoPresets.h360.resolution },
-            publishDefaults: { videoCodec: 'vp8', dtx: true }
-        });
+        if (!token) {
+            log("Error: No Token Provided", true);
+            return;
+        }
 
-        // --- EVENT HANDLERS ---
+        try {
+            // Create Room
+            room = new LivekitClient.Room({
+                adaptiveStream: true,
+                dynacast: true
+            });
 
-        // 1. Remote Video/Audio Subscribed
-        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-            log(`Connected to ${participant.identity}`);
+            // --- Remote Events ---
             
-            if (track.kind === 'video') {
-                // IMPORTANT: Use track.attach() to let LiveKit handle the video element
-                track.attach(remoteVideoWrapper); 
-                placeholderText.style.display = 'none';
-            } else {
-                // Audio
-                track.attach(); 
-            }
-        });
-
-        // 2. Remote Track Unpublished (User turned off cam)
-        room.on(LivekitClient.RoomEvent.TrackUnpublished, (publication, participant) => {
-            if (publication.kind === 'video') {
-                placeholderText.style.display = 'block';
-                placeholderText.textContent = `${participant.identity} camera off`;
+            // When a friend joins and sends video/audio
+            room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                log(`Connected to ${participant.identity || 'User'}`);
                 
-                // Remove the video element attached to this track
-                if (publication.track) {
-                    publication.track.detach().forEach(el => el.remove());
+                if (track.kind === 'video') {
+                    placeholderText.style.display = 'none';
+                    track.attach(remoteVideoWrapper); // Attach to main screen
+                } else if (track.kind === 'audio') {
+                    track.attach(); // Auto-play audio
+                }
+            });
+
+            // When friend turns off camera
+            room.on(LivekitClient.RoomEvent.TrackUnpublished, (publication, participant) => {
+                if (publication.kind === 'video') {
+                    placeholderText.style.display = 'block';
+                    placeholderText.textContent = `${participant.identity || 'User'} disabled camera`;
+                    // Clean up video elements
+                    const attachedElements = publication.track?.detach();
+                    attachedElements?.forEach(el => el.remove());
+                }
+            });
+
+            // When friend leaves
+            room.on(LivekitClient.RoomEvent.ParticipantDisconnected, () => {
+                placeholderText.style.display = 'block';
+                placeholderText.textContent = "Waiting for others...";
+            });
+
+            // --- Connect & Publish ---
+
+            await room.connect(LIVEKIT_URL, token);
+            log("Connected to Room");
+
+            // Manually publish the stream we got in Step 1
+            // This fixes the mic issue by explicitly publishing the audio track
+            if (localStream) {
+                const audioTrack = localStream.getAudioTracks()[0];
+                const videoTrack = localStream.getVideoTracks()[0];
+
+                if (audioTrack) {
+                    await room.localParticipant.publishTrack(audioTrack, { name: 'mic' });
+                    console.log("Audio published");
+                }
+                
+                if (videoTrack) {
+                    await room.localParticipant.publishTrack(videoTrack, { name: 'camera' });
+                    console.log("Video published");
                 }
             }
-        });
-
-        // 3. Participant Left
-        room.on(LivekitClient.RoomEvent.ParticipantDisconnected, () => {
-            placeholderText.style.display = 'block';
-            placeholderText.textContent = "Waiting for others...";
             
-            // Clean up remote video elements
-            const videos = remoteVideoWrapper.querySelectorAll('video');
-            videos.forEach(v => v.remove());
-        });
-
-        // 4. Local Track Published (Confirm we are sending video)
-        room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
-            log(`Sending ${publication.kind}...`);
-            // If it's video, ensure it's attached locally (Double check)
-            if (publication.kind === 'video') {
-                publication.track.attach(localVideoWrapper);
-                localVideoWrapper.style.display = 'block';
-            }
-        });
-
-        // --- CONNECT & PUBLISH ---
-        
-        try {
-            await room.connect(LIVEKIT_URL, token);
-            log("Connected!");
-
-            // Publish the tracks we created earlier
-            for (const track of preJoinedTracks) {
-                await room.localParticipant.publishTrack(track);
-            }
-            log("You are live");
+            log("You are Live");
 
         } catch (error) {
-            log("Connection Failed", true);
-            console.error(error);
+            console.error("Connection Failed:", error);
+            log("Connection Failed. Check Internet.", true);
         }
     }
 
-    // ==============================
-    // 3. CONTROLS
-    // ==============================
+    // ============================================
+    // 3. BUTTON CONTROLS
+    // ============================================
     const micBtn = document.getElementById("micBtn");
     const camBtn = document.getElementById("camBtn");
     const leaveBtn = document.getElementById("leaveBtn");
 
     micBtn.onclick = () => {
-        if (!room) return;
-        const current = micOn;
-        room.localParticipant.setMicrophoneEnabled(!current).then(() => {
-            micOn = !current;
-            micBtn.className = micOn ? "control-btn btn-normal" : "control-btn btn-muted";
-            log(micOn ? "Mic On" : "Mic Muted");
-        });
+        if (!localStream) return;
+        micOn = !micOn;
+        
+        // Toggle actual stream tracks
+        localStream.getAudioTracks().forEach(t => t.enabled = micOn);
+        
+        micBtn.className = micOn ? "control-btn btn-normal" : "control-btn btn-muted";
+        log(micOn ? "Microphone On" : "Microphone Muted");
     };
 
     camBtn.onclick = () => {
-        if (!room) return;
-        const current = camOn;
-        room.localParticipant.setCameraEnabled(!current).then(() => {
-            camOn = !current;
-            camBtn.className = camOn ? "control-btn btn-normal" : "control-btn btn-muted";
-            localVideoWrapper.style.display = camOn ? 'block' : 'none';
-            log(camOn ? "Camera On" : "Camera Off");
-        });
+        if (!localStream) return;
+        camOn = !camOn;
+        
+        // Toggle actual stream tracks
+        localStream.getVideoTracks().forEach(t => t.enabled = camOn);
+        
+        camBtn.className = camOn ? "control-btn btn-normal" : "control-btn btn-muted";
+        localVideoWrapper.style.display = camOn ? 'block' : 'none';
+        
+        // If we are connected, update server status too
+        if (room && room.localParticipant) {
+             // Just purely local toggle is usually enough for visual, 
+             // but disabling track sends black frame/silence
+        }
     };
 
     leaveBtn.onclick = () => {
         if (room) room.disconnect();
-        if (window.Telegram?.WebApp) Telegram.WebApp.close();
-        else window.location.reload();
+        if (localStream) localStream.getTracks().forEach(t => t.stop());
+        
+        if (window.Telegram?.WebApp) {
+            Telegram.WebApp.close();
+        } else {
+            window.location.reload();
+        }
     };
 
 </script>
