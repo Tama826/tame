@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LiveKit Telegram Call</title>
+    <title>Blind Date Call</title>
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
@@ -14,10 +14,9 @@
             --bg-color: #000000;
             --text-color: #ffffff;
             --control-bg: rgba(255, 255, 255, 0.15);
-            --control-hover: rgba(255, 255, 255, 0.3);
-            --accent-color: #3390ec; /* Telegram Blue */
+            --accent-color: #ff2e63; /* "Date" Vibe: Pink/Red */
             --danger-color: #ff3b30;
-            --tame-brand-color: #00ff9d; /* Slight glow color for footer */
+            --tame-brand-color: #00ff9d;
         }
 
         * {
@@ -37,14 +36,14 @@
             flex-direction: column;
         }
 
-        /* --- VIDEO CONTAINER (LAYER 1) --- */
+        /* --- VIDEO STAGE --- */
         #video-stage {
             position: relative;
             flex: 1;
             width: 100%;
             height: 100%;
             background: #111;
-            overflow: hidden;
+            display: none; /* Hidden until joined */
         }
 
         /* Remote Video (Fullscreen) */
@@ -62,7 +61,7 @@
             object-fit: cover;
         }
 
-        /* Placeholder when no remote peer */
+        /* Placeholder text */
         .waiting-message {
             position: absolute;
             top: 50%;
@@ -72,6 +71,7 @@
             color: rgba(255, 255, 255, 0.5);
             pointer-events: none;
             z-index: 5;
+            width: 80%;
         }
 
         /* Local Video (PiP) */
@@ -79,8 +79,8 @@
             position: absolute;
             top: 16px;
             right: 16px;
-            width: 100px; /* Small PiP */
-            height: 133px; /* 3:4 aspect ratio approx */
+            width: 100px;
+            height: 133px;
             background: #000;
             border-radius: 12px;
             border: 1px solid rgba(255, 255, 255, 0.2);
@@ -93,13 +93,13 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* Mirror local video */
+            transform: scaleX(-1);
         }
 
-        /* --- CONTROLS (LAYER 2) --- */
+        /* --- CONTROLS --- */
         #controls-bar {
             position: absolute;
-            bottom: 60px; /* Above branding */
+            bottom: 60px;
             left: 0;
             width: 100%;
             display: flex;
@@ -107,8 +107,7 @@
             gap: 20px;
             padding: 15px;
             z-index: 20;
-            /* Gradient for visibility */
-            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
         }
 
         .control-btn {
@@ -123,146 +122,115 @@
             align-items: center;
             justify-content: center;
             backdrop-filter: blur(5px);
-            transition: all 0.2s ease;
+            transition: transform 0.2s ease;
         }
 
-        .control-btn:active {
-            transform: scale(0.95);
-        }
+        .control-btn:active { transform: scale(0.9); }
+        .control-btn.active { background: #3390ec; } /* Blue for active state */
+        .control-btn.danger { background: var(--danger-color); }
 
-        .control-btn.active {
-            background: var(--accent-color);
-        }
-
-        .control-btn.danger {
-            background: var(--danger-color);
-        }
-
-        /* SVG Icons */
         .icon { width: 24px; height: 24px; fill: currentColor; }
 
-        /* --- BRANDING (MANDATORY) --- */
+        /* --- BRANDING --- */
         #tame-footer {
             position: absolute;
-            bottom: 10px;
+            bottom: 15px;
             width: 100%;
             text-align: center;
             font-size: 10px;
             font-weight: 600;
             letter-spacing: 0.5px;
-            color: rgba(255, 255, 255, 0.6);
+            color: rgba(255, 255, 255, 0.5);
             z-index: 30;
-            text-shadow: 0 0 5px rgba(0, 255, 157, 0.2);
+            pointer-events: none;
         }
         
         #tame-footer span {
             color: var(--tame-brand-color);
+            text-shadow: 0 0 8px rgba(0, 255, 157, 0.4);
         }
 
-        /* --- JOIN SCREEN (LAYER 3) --- */
-        #join-screen {
+        /* --- LOBBY / JOIN SCREEN --- */
+        #lobby-screen {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: var(--bg-color);
+            background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 100;
             padding: 20px;
+            text-align: center;
         }
 
-        .input-group {
-            width: 100%;
-            max-width: 320px;
-            margin-bottom: 15px;
+        #lobby-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: -webkit-linear-gradient(45deg, #fff, #aaa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .input-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 12px;
-            color: #888;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid #333;
-            background: #111;
-            color: white;
+        #lobby-status {
             font-size: 14px;
+            color: #888;
+            margin-bottom: 40px;
         }
 
-        #join-btn {
-            margin-top: 10px;
+        #start-date-btn {
             background: var(--accent-color);
             color: white;
             border: none;
-            padding: 15px 40px;
-            border-radius: 12px;
-            font-size: 16px;
+            padding: 18px 50px;
+            border-radius: 30px;
+            font-size: 18px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(51, 144, 236, 0.3);
+            box-shadow: 0 10px 25px rgba(255, 46, 99, 0.3);
+            transition: transform 0.2s;
             width: 100%;
-            max-width: 320px;
+            max-width: 280px;
         }
 
-        #join-btn:disabled {
-            background: #333;
-            color: #666;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
-
-        /* --- NOTIFICATIONS --- */
-        #status-toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(30, 30, 30, 0.9);
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 12px;
-            z-index: 150;
+        #start-date-btn:active { transform: scale(0.95); }
+        
+        #error-msg {
+            color: var(--danger-color);
+            margin-top: 20px;
+            font-size: 13px;
             display: none;
-            border: 1px solid #333;
+            background: rgba(255, 59, 48, 0.1);
+            padding: 10px;
+            border-radius: 8px;
         }
 
-        /* Hidden audio for Remote Audio tracks */
-        #remote-audio-root {
-            display: none;
-        }
+        /* Hidden Audio Root */
+        #remote-audio-root { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="join-screen">
-        <h2 style="margin-bottom: 20px;">Video Call</h2>
-        
-        <div class="input-group">
-            <label>LiveKit Server URL</label>
-            <input type="text" id="url-input" placeholder="wss://your-project.livekit.cloud">
+    <div id="lobby-screen">
+        <div id="lobby-content">
+            <h1 id="lobby-title">It's a Match! ❤️</h1>
+            <p id="lobby-status">Your blind date is ready.</p>
+            
+            <button id="start-date-btn">Start Date</button>
+            
+            <div id="error-msg"></div>
+            <p style="margin-top:30px; font-size:11px; color:#444;">Connection optimized for low bandwidth</p>
         </div>
-        
-        <div class="input-group">
-            <label>Access Token</label>
-            <input type="text" id="token-input" placeholder="eyJ...">
-        </div>
-
-        <button id="join-btn">Join Call</button>
-        <p style="margin-top:15px; font-size:12px; color:#666;">Optimized for Ethiopia (Low Bandwidth)</p>
     </div>
 
     <div id="video-stage">
         <div class="waiting-message" id="waiting-msg">
-            Waiting for others to join...
+            <h2>Waiting for your date...</h2>
+            <p style="font-size: 12px; margin-top: 5px; color:#888;">Don't leave, they will appear soon.</p>
         </div>
 
         <div id="remote-video-container"></div>
@@ -292,16 +260,13 @@
         Developed by <span>TAME</span>
     </div>
 
-    <div id="status-toast">Ready to connect</div>
-
     <script>
-        // ==========================================
-        // 1. CONFIGURATION (Ethiopia Optimized)
-        // ==========================================
-        // Strict bandwidth limits (250-350kbps)
+        // =========================================================
+        // 1. ETHIOPIA NETWORK CONFIG (STRICT BANDWIDTH LIMITS)
+        // =========================================================
         const VIDEO_CONFIG = {
-            resolution: LivekitClient.VideoPresets.h360, // 360p (640x360)
-            frameRate: 15, // Low FPS to save bandwidth
+            resolution: LivekitClient.VideoPresets.h360, // 360p
+            frameRate: 15,
             width: 640,
             height: 360
         };
@@ -309,242 +274,185 @@
         const PUBLISH_DEFAULTS = {
             videoCodec: 'vp8',
             videoEncoding: {
-                maxBitrate: 350000, // 350 kbps max
+                maxBitrate: 300000, // 300 kbps (Very strict)
                 maxFramerate: 15
             },
-            simulcast: false, // Disable simulcast to reduce upload strain on weak 4G
+            simulcast: false, // Disabled to save upload bandwidth
         };
 
-        const ROOM_OPTIONS = {
-            adaptiveStream: true,
-            dynacast: true,
-            videoCaptureDefaults: VIDEO_CONFIG,
-            publishDefaults: PUBLISH_DEFAULTS
-        };
-
-        // ==========================================
-        // 2. STATE & TELEGRAM INIT
-        // ==========================================
-        let room = null;
-        let isMicOn = true;
-        let isCamOn = true;
-
-        // Telegram WebApp Initialization
+        // =========================================================
+        // 2. SETUP & PARAMS
+        // =========================================================
         const tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
         tg.enableClosingConfirmation();
 
+        // Parse URL Parameters (Auto-detect Token/URL)
+        const urlParams = new URLSearchParams(window.location.search);
+        const WS_URL = urlParams.get('url');
+        const TOKEN = urlParams.get('token');
+
         // UI References
-        const joinScreen = document.getElementById('join-screen');
-        const joinBtn = document.getElementById('join-btn');
+        const lobbyScreen = document.getElementById('lobby-screen');
+        const startBtn = document.getElementById('start-date-btn');
+        const errorMsg = document.getElementById('error-msg');
+        const videoStage = document.getElementById('video-stage');
+        
         const remoteContainer = document.getElementById('remote-video-container');
+        const audioRoot = document.getElementById('remote-audio-root');
         const localVideoEl = document.getElementById('local-video');
         const waitingMsg = document.getElementById('waiting-msg');
-        const toast = document.getElementById('status-toast');
-        const audioRoot = document.getElementById('remote-audio-root');
 
-        const btnMic = document.getElementById('mic-btn');
-        const btnCam = document.getElementById('cam-btn');
-        const btnLeave = document.getElementById('leave-btn');
+        let room = null;
+        let isMicOn = true;
+        let isCamOn = true;
 
-        const inputUrl = document.getElementById('url-input');
-        const inputToken = document.getElementById('token-input');
-
-        // ==========================================
-        // 3. CORE LOGIC
-        // ==========================================
-
-        // Helper: Show temporary status
-        function showToast(msg, isError = false) {
-            toast.textContent = msg;
-            toast.style.display = 'block';
-            toast.style.borderColor = isError ? 'var(--danger-color)' : '#333';
-            setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        // =========================================================
+        // 3. INITIALIZATION LOGIC
+        // =========================================================
+        
+        // Validate Link
+        if (!WS_URL || !TOKEN) {
+            startBtn.style.display = 'none';
+            showError("Invalid Date Link. Please restart the bot.");
         }
 
-        // Action: Join Call
-        joinBtn.addEventListener('click', async () => {
-            const url = inputUrl.value.trim();
-            const token = inputToken.value.trim();
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.style.display = 'block';
+        }
 
-            if (!url || !token) {
-                showToast('URL and Token required', true);
-                return;
-            }
-
-            joinBtn.disabled = true;
-            joinBtn.textContent = "Connecting...";
-
+        // Start Date Button (Triggers Permissions)
+        startBtn.addEventListener('click', async () => {
+            startBtn.disabled = true;
+            startBtn.textContent = "Connecting...";
+            
             try {
-                // Initialize Room
-                room = new LivekitClient.Room(ROOM_OPTIONS);
-                
-                // Bind Events
-                bindRoomEvents(room);
-
-                // Connect
-                await room.connect(url, token);
-                console.log('Connected to Room:', room.name);
-
-                // Request Permissions & Publish ONLY AFTER connection (User Gesture Context)
-                // We use LiveKit's internal helpers to manage tracks, NOT getUserMedia directly.
-                await room.localParticipant.enableCameraAndMicrophone();
-                
-                // Attach Local Video
-                attachLocalVideo();
-
-                // Hide Join Screen
-                joinScreen.style.display = 'none';
-                showToast("You are live");
-
-            } catch (error) {
-                console.error('Connection failed:', error);
-                showToast('Connection failed: ' + error.message, true);
-                joinBtn.disabled = false;
-                joinBtn.textContent = "Join Call";
-                
-                // Cleanup if partial failure
-                if(room) room.disconnect();
+                await initLiveKit();
+            } catch (err) {
+                console.error(err);
+                startBtn.disabled = false;
+                startBtn.textContent = "Try Again";
+                showError("Connection failed. Check internet.");
             }
         });
 
-        // ==========================================
-        // 4. LIVEKIT EVENT HANDLING
-        // ==========================================
-        function bindRoomEvents(room) {
-            // REMOTE TRACK SUBSCRIBED
-            room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-                console.log('Track subscribed:', track.kind);
-                
-                if (track.kind === LivekitClient.Track.Kind.Video) {
-                    // Clear previous video elements if any
-                    remoteContainer.innerHTML = ''; 
-                    
-                    // Create element and attach
-                    const videoEl = track.attach();
-                    remoteContainer.appendChild(videoEl);
-                    waitingMsg.style.display = 'none'; // Hide placeholder
-                } 
-                else if (track.kind === LivekitClient.Track.Kind.Audio) {
-                    // ECHO PREVENTION: Attach to separate audio container
-                    const audioEl = track.attach();
-                    audioRoot.appendChild(audioEl);
-                }
+        // =========================================================
+        // 4. LIVEKIT LOGIC
+        // =========================================================
+        async function initLiveKit() {
+            room = new LivekitClient.Room({
+                adaptiveStream: true,
+                dynacast: true,
+                videoCaptureDefaults: VIDEO_CONFIG,
+                publishDefaults: PUBLISH_DEFAULTS
             });
 
-            // REMOTE TRACK UNSUBSCRIBED
-            room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-                console.log('Track unsubscribed', track.kind);
-                track.detach().forEach(el => el.remove());
-                
-                // Check if any video tracks remain
-                const videoTracks = Array.from(room.participants.values())
-                    .flatMap(p => Array.from(p.videoTracks.values()))
-                    .filter(pub => pub.isSubscribed);
+            // Set up Event Listeners
+            room
+            .on(LivekitClient.RoomEvent.TrackSubscribed, handleTrackSubscribed)
+            .on(LivekitClient.RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed)
+            .on(LivekitClient.RoomEvent.ParticipantDisconnected, handleParticipantLeft)
+            .on(LivekitClient.RoomEvent.Disconnected, handleRoomDisconnect);
 
-                if (videoTracks.length === 0) {
-                    waitingMsg.style.display = 'block';
-                }
-            });
+            // Connect
+            await room.connect(WS_URL, TOKEN);
+            console.log('Connected to Room');
 
-            // PARTICIPANT DISCONNECTED
-            room.on(LivekitClient.RoomEvent.ParticipantDisconnected, () => {
-                // If no remote participants, show waiting
-                if(room.participants.size === 0) {
-                    remoteContainer.innerHTML = '';
-                    waitingMsg.style.display = 'block';
-                }
-            });
+            // Switch UI
+            lobbyScreen.style.display = 'none';
+            videoStage.style.display = 'block'; // Show video stage
 
-            // CONNECTION STATE
-            room.on(LivekitClient.RoomEvent.Disconnected, () => {
-                handleDisconnect();
-            });
+            // Enable Cam/Mic (triggers permission prompt)
+            await room.localParticipant.enableCameraAndMicrophone();
             
-            room.on(LivekitClient.RoomEvent.Reconnecting, () => {
-                showToast("Network unstable, reconnecting...", true);
-            });
-            
-            room.on(LivekitClient.RoomEvent.Reconnected, () => {
-                showToast("Reconnected");
-            });
+            // Attach Local Video
+            const videoTrack = Array.from(room.localParticipant.videoTracks.values())[0]?.track;
+            if (videoTrack) videoTrack.attach(localVideoEl);
         }
 
-        // ==========================================
-        // 5. LOCAL MEDIA MANAGEMENT
-        // ==========================================
-        function attachLocalVideo() {
-            // Find local video track
-            const videoTrack = Array.from(room.localParticipant.videoTracks.values())[0]?.track;
-            if (videoTrack) {
-                videoTrack.attach(localVideoEl);
+        // --- Event Handlers ---
+
+        function handleTrackSubscribed(track, publication, participant) {
+            if (track.kind === LivekitClient.Track.Kind.Video) {
+                // Remove waiting text, show video
+                waitingMsg.style.display = 'none';
+                remoteContainer.innerHTML = ''; 
+                const el = track.attach();
+                remoteContainer.appendChild(el);
+            } else if (track.kind === LivekitClient.Track.Kind.Audio) {
+                // Strict Echo Prevention: Audio goes to hidden div
+                const el = track.attach();
+                audioRoot.appendChild(el);
             }
         }
 
-        // Toggle Mic
-        btnMic.addEventListener('click', async () => {
+        function handleTrackUnsubscribed(track) {
+            track.detach().forEach(el => el.remove());
+            
+            // Check if we need to show waiting text again
+            const hasVideo = Array.from(room.participants.values())
+                .some(p => Array.from(p.videoTracks.values()).some(t => t.isSubscribed));
+            
+            if (!hasVideo) waitingMsg.style.display = 'block';
+        }
+
+        function handleParticipantLeft() {
+            remoteContainer.innerHTML = '';
+            waitingMsg.innerHTML = "<h2>Date Left</h2><p>Your partner has disconnected.</p>";
+            waitingMsg.style.display = 'block';
+        }
+
+        function handleRoomDisconnect() {
+            // Reset UI on full disconnect
+            videoStage.style.display = 'none';
+            lobbyScreen.style.display = 'flex';
+            startBtn.disabled = false;
+            startBtn.textContent = "Rejoin Date";
+            remoteContainer.innerHTML = '';
+            audioRoot.innerHTML = '';
+            tg.close(); // Close Telegram window
+        }
+
+        // =========================================================
+        // 5. CONTROLS
+        // =========================================================
+        
+        document.getElementById('mic-btn').addEventListener('click', async (e) => {
             if (!room) return;
             isMicOn = !isMicOn;
             await room.localParticipant.setMicrophoneEnabled(isMicOn);
-            updateButtonState(btnMic, isMicOn);
+            toggleBtnStyle(e.currentTarget, isMicOn);
         });
 
-        // Toggle Cam
-        btnCam.addEventListener('click', async () => {
+        document.getElementById('cam-btn').addEventListener('click', async (e) => {
             if (!room) return;
             isCamOn = !isCamOn;
             await room.localParticipant.setCameraEnabled(isCamOn);
-            updateButtonState(btnCam, isCamOn);
+            toggleBtnStyle(e.currentTarget, isCamOn);
             
-            // Re-attach if turned back on
-            if(isCamOn) setTimeout(attachLocalVideo, 500); 
+            // Re-attach local video if enabled
+            if(isCamOn) {
+                setTimeout(() => {
+                    const track = Array.from(room.localParticipant.videoTracks.values())[0]?.track;
+                    if(track) track.attach(localVideoEl);
+                }, 200);
+            }
         });
 
-        function updateButtonState(btn, isActive) {
+        document.getElementById('leave-btn').addEventListener('click', () => {
+            if (room) room.disconnect();
+        });
+
+        function toggleBtnStyle(btn, isActive) {
             if (isActive) {
                 btn.classList.add('active');
-                btn.classList.remove('danger'); // Remove danger style (red slash look) if we had one
                 btn.style.opacity = '1';
             } else {
                 btn.classList.remove('active');
                 btn.style.opacity = '0.5';
             }
-        }
-
-        // ==========================================
-        // 6. CLEANUP & EXIT
-        // ==========================================
-        btnLeave.addEventListener('click', () => {
-            if (room) room.disconnect();
-        });
-
-        function handleDisconnect() {
-            console.log('Disconnected');
-            
-            // 1. Stop all tracks
-            if (room && room.localParticipant) {
-                room.localParticipant.tracks.forEach(publication => {
-                    if (publication.track) {
-                        publication.track.stop();
-                        publication.track.detach();
-                    }
-                });
-            }
-
-            // 2. Clear DOM
-            remoteContainer.innerHTML = '';
-            audioRoot.innerHTML = '';
-            localVideoEl.srcObject = null;
-
-            // 3. Reset UI
-            joinScreen.style.display = 'flex';
-            joinBtn.disabled = false;
-            joinBtn.textContent = "Join Call";
-            room = null;
-
-            // 4. Close Telegram App (Optional, or just reset state)
-            tg.close();
         }
 
     </script>
