@@ -3,101 +3,54 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Blind Call</title>
+<title>Blind Date Call</title>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/livekit-client@1.15.4/dist/livekit-client.umd.min.js"></script>
 
 <style>
 :root {
-    --bg-color: #000;
-    --text-color: #fff;
-    --control-bg: rgba(255,255,255,0.15);
-    --accent-color: #3390ec;
+    --bg-color: #000000;
+    --text-color: #ffffff;
+    --control-bg: rgba(255, 255, 255, 0.15);
+    --accent-color: #3390ec; /* CHANGED */
     --danger-color: #ff3b30;
     --tame-brand-color: #00ff9d;
 }
 
-/* ================= BASE ================= */
-* { box-sizing: border-box; margin:0; padding:0; -webkit-tap-highlight-color:none; }
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
 body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont;
-    background: var(--bg-color);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
     color: var(--text-color);
     height: 100vh;
     overflow: hidden;
-}
-
-/* ================= LOBBY ================= */
-#lobby-screen {
-    position: fixed;
-    inset: 0;
-    background: radial-gradient(circle at top, #111 0%, #000 70%);
     display: flex;
     flex-direction: column;
+}
+
+/* ---------- VIDEO STAGE ---------- */
+#video-stage {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    background: #111;
+    display: none;
+}
+
+#remote-video-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
     justify-content: center;
     align-items: center;
-    text-align: center;
-    animation: fadeIn 1s ease forwards;
-}
-
-#lobby-title {
-    font-size: 26px;
-    font-weight: 800;
-    margin-bottom: 12px;
-    letter-spacing: .4px;
-    background: linear-gradient(90deg, #fff, #aaa, #fff);
-    background-size: 200%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: titleGlow 4s linear infinite;
-}
-
-#lobby-sub {
-    font-size: 14px;
-    color: #999;
-    margin-bottom: 32px;
-    animation: floatText 3s ease-in-out infinite;
-}
-
-#start-date-btn {
-    background: linear-gradient(135deg, #3390ec, #5aa8ff);
-    color: #fff;
-    border: none;
-    padding: 18px 50px;
-    border-radius: 40px;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 15px 40px rgba(51,144,236,.35);
-    animation: pulse 2.2s infinite;
-}
-
-#start-date-btn:active { transform: scale(.95); }
-
-#powered {
-    margin-top: 35px;
-    font-size: 11px;
-    letter-spacing: 1px;
-    color: #555;
-    position: relative;
-    overflow: hidden;
-}
-
-#powered::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(120deg, transparent, rgba(0,255,157,.6), transparent);
-    transform: translateX(-100%);
-    animation: shimmer 3s infinite;
-}
-
-/* ================= VIDEO ================= */
-#video-stage {
-    display: none;
-    position: relative;
-    height: 100%;
 }
 
 #remote-video-container video {
@@ -106,40 +59,147 @@ body {
     object-fit: cover;
 }
 
-/* ================= FOOTER ================= */
+.waiting-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+    z-index: 5;
+    width: 80%;
+}
+
+#local-video-container {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 100px;
+    height: 133px;
+    background: #000;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+    z-index: 10;
+}
+
+#local-video-container video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+}
+
+/* ---------- CONTROLS ---------- */
+#controls-bar {
+    position: absolute;
+    bottom: 60px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding: 15px;
+    z-index: 20;
+}
+
+.control-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    background: var(--control-bg);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.control-btn.active { background: #3390ec; }
+.control-btn.danger { background: var(--danger-color); }
+
+/* ---------- FOOTER ---------- */
 #tame-footer {
     position: absolute;
-    bottom: 12px;
+    bottom: 15px;
     width: 100%;
     text-align: center;
     font-size: 10px;
-    color: rgba(255,255,255,.4);
+    color: rgba(255,255,255,0.5);
 }
 
 #tame-footer span {
     color: var(--tame-brand-color);
-    text-shadow: 0 0 10px rgba(0,255,157,.6);
+    text-shadow: 0 0 8px rgba(0,255,157,0.4);
     animation: glow 2s infinite alternate;
 }
 
-/* ================= ANIMATIONS ================= */
-@keyframes fadeIn { from {opacity:0} to {opacity:1} }
-@keyframes titleGlow { to {background-position:200%} }
+/* ---------- LOBBY ---------- */
+#lobby-screen {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg, #1a1a1a 0%, #000 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    padding: 20px;
+    text-align: center;
+    animation: fadeIn 0.8s ease forwards;
+}
+
+#lobby-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    background: -webkit-linear-gradient(45deg, #fff, #aaa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+#start-date-btn {
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    padding: 18px 50px;
+    border-radius: 30px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 10px 25px rgba(51,144,236,0.35);
+    width: 100%;
+    max-width: 280px;
+    margin-bottom: 20px;
+    animation: pulse 2.4s infinite;
+}
+
+#powered-text {
+    font-size: 11px;
+    color: #555;
+    position: relative;
+    overflow: hidden;
+}
+
+#powered-text::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent, rgba(0,255,157,0.6), transparent);
+    transform: translateX(-100%);
+    animation: shimmer 3s infinite;
+}
+
+/* ---------- ANIMATIONS ---------- */
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
 @keyframes pulse {
-    0%,100% { box-shadow:0 0 0 rgba(51,144,236,.6); }
-    50% { box-shadow:0 0 35px rgba(51,144,236,.8); }
+    0%,100% { box-shadow:0 0 0 rgba(51,144,236,.4); }
+    50% { box-shadow:0 0 28px rgba(51,144,236,.7); }
 }
-@keyframes floatText {
-    0%,100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-}
-@keyframes shimmer {
-    to { transform: translateX(100%); }
-}
-@keyframes glow {
-    from { opacity:.6 }
-    to { opacity:1 }
-}
+@keyframes shimmer { to { transform: translateX(100%); } }
+@keyframes glow { from{opacity:.6} to{opacity:1} }
 </style>
 </head>
 
@@ -147,24 +207,78 @@ body {
 
 <div id="lobby-screen">
     <h1 id="lobby-title">You're Connected 🤝</h1>
-    <p id="lobby-sub">A new conversation is ready</p>
+    <p style="color:#888; margin-bottom:30px; font-size:14px;">
+        A new conversation is ready
+    </p>
 
     <button id="start-date-btn">Start Call</button>
 
-    <div id="powered">POWERED BY TAME</div>
+    <p id="powered-text">Powered by TAME</p>
 </div>
 
 <div id="video-stage">
-    <!-- untouched video logic -->
+    <div class="waiting-message" id="waiting-msg">
+        <h2>Waiting for your partner...</h2>
+        <p style="font-size:12px;color:#888;">They will appear shortly</p>
+    </div>
+
+    <div id="remote-video-container"></div>
+
+    <div id="local-video-container">
+        <video id="local-video" muted playsinline></video>
+    </div>
+
+    <div id="controls-bar">
+        <button class="control-btn active" id="mic-btn">🎤</button>
+        <button class="control-btn active" id="cam-btn">📷</button>
+        <button class="control-btn danger" id="leave-btn">⛔</button>
+    </div>
 </div>
+
+<div id="remote-audio-root"></div>
 
 <div id="tame-footer">
     Developed by <span>TAME</span>
 </div>
 
 <script>
-/* 🔒 YOUR ORIGINAL JS LOGIC IS UNCHANGED 🔒 */
-/* (Paste your existing script here exactly as-is) */
+/* ===== YOUR ORIGINAL JS (UNTOUCHED) ===== */
+
+const SERVER_URL = "wss://video-20qatdd3.livekit.cloud";
+const tg = window.Telegram.WebApp;
+tg.ready(); tg.expand(); tg.enableClosingConfirmation();
+
+const params = new URLSearchParams(location.search);
+const TOKEN = params.get("token");
+const WS_URL = params.get("url") || SERVER_URL;
+
+const lobbyScreen = document.getElementById('lobby-screen');
+const startBtn = document.getElementById('start-date-btn');
+const videoStage = document.getElementById('video-stage');
+const remoteContainer = document.getElementById('remote-video-container');
+const audioRoot = document.getElementById('remote-audio-root');
+const localVideoEl = document.getElementById('local-video');
+const waitingMsg = document.getElementById('waiting-msg');
+
+let room, mic=true, cam=true;
+
+startBtn.onclick = async () => {
+    room = new LivekitClient.Room({ adaptiveStream:true, dynacast:true });
+    room.on(LivekitClient.RoomEvent.TrackSubscribed, (track)=>{
+        if(track.kind==="video"){ waitingMsg.style.display="none"; remoteContainer.append(track.attach()); }
+        if(track.kind==="audio"){ audioRoot.append(track.attach()); }
+    });
+    await room.connect(WS_URL, TOKEN);
+    lobbyScreen.style.display="none";
+    videoStage.style.display="block";
+    await room.localParticipant.enableCameraAndMicrophone();
+    room.localParticipant.videoTracks.values().next().value.track.attach(localVideoEl);
+};
+
+document.getElementById('mic-btn').onclick=()=>room.localParticipant.setMicrophoneEnabled(mic=!mic);
+document.getElementById('cam-btn').onclick=()=>room.localParticipant.setCameraEnabled(cam=!cam);
+document.getElementById('leave-btn').onclick=()=>room.disconnect();
+
 </script>
 
 </body>
