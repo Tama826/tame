@@ -187,7 +187,7 @@
 
     <div id="remoteVideoWrapper">
         <div class="placeholder-text">Waiting for others...</div>
-        <video id="remoteVideo" autoplay playsinline muted></video>
+        <video id="remoteVideo" autoplay playsinline></video>
     </div>
     
     <div id="localVideoWrapper">
@@ -206,7 +206,7 @@
 
 <script>
     // ==============================
-    // 1. SETUP & HELPERS
+    // 1. SETUP & LOGGING
     // ==============================
     const statusEl = document.getElementById("status-bar");
     const modal = document.getElementById("permissionModal");
@@ -220,19 +220,21 @@
     }
     window.onerror = (msg) => log("Err: " + msg, true);
 
+    // Initialize Telegram
     if (window.Telegram?.WebApp) {
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
         Telegram.WebApp.enableClosingConfirmation();
     }
 
+    // Config
     const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud";
     let room;
     let micOn = true;
     let camOn = true;
 
     // ==============================
-    // 2. PERMISSION GESTURE
+    // 2. PERMISSION GESTURE & JOIN
     // ==============================
     joinBtn.onclick = async function() {
         joinBtn.disabled = true;
@@ -240,31 +242,37 @@
         log("Requesting permissions...");
         
         try {
-            // 1. Trigger gesture requirement
+            // 1. Request access temporarily to trigger browser permission prompt
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: true,
-                video: { width: { ideal: 320 }, height: { ideal: 240 }, facingMode: 'user' }
+                video: { width: { ideal: 320 }, facingMode: 'user' }
             });
-            // 2. Release immediately
+            
+            // 2. IMPORTANT: Stop tracks immediately to free up hardware for LiveKit
             stream.getTracks().forEach(t => t.stop());
             
-            // 3. Proceed
+            // 3. Hide modal and start real connection
             modal.style.display = "none";
             connectToLiveKit();
 
         } catch (e) {
-            log("Permission denied. " + e.message, true);
+            log("Permission denied or device busy.", true);
+            console.error(e);
             joinBtn.disabled = false;
             joinBtn.textContent = "Try Again";
         }
     };
 
     // ==============================
-    // 3. CONNECTION & VIDEO HANDLING
+    // 3. LIVEKIT CONNECTION LOGIC
     // ==============================
     async function connectToLiveKit() {
+        // Get Token from URL
         const token = new URLSearchParams(location.search).get("token");
-        if (!token) { log("Error: Missing token URL parameter", true); return; }
+        if (!token) { 
+            log("Error: No token found in URL", true); 
+            return; 
+        }
 
         log("Connecting to server...");
 
@@ -276,70 +284,73 @@
                 publishDefaults: { videoCodec: 'vp8', dtx: true }
             });
 
-            // --- REMOTE VIDEO HANDLING ---
+            // --- TRACK SUBSCRIBED (REMOTE) ---
             room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-                log(`Linked with ${participant.identity}`);
+                log(`Connected to ${participant.identity}`);
                 
                 if (track.kind === "video") {
                     const remoteEl = document.getElementById("remoteVideo");
-                    // CRITICAL FIX: Mute the video element itself so browser allows autoplay
-                    // (Audio comes from a separate track, so you will still hear them)
+                    
+                    // FIX 1: Attach track
+                    track.attach(remoteEl);
+                    
+                    // FIX 2: Force muted = true. 
+                    // Browsers block autoplay if not muted. 
+                    // You will still hear audio because LiveKit handles audio via a separate track.
                     remoteEl.muted = true; 
                     
-                    track.attach(remoteEl);
-                    remoteEl.play().catch(e => console.error("Remote Play Error:", e));
+                    // FIX 3: Force play
+                    remoteEl.play().catch(e => console.log("Autoplay blocked:", e));
+                    
                     remoteEl.style.display = 'block'; 
                 }
                 
                 if (track.kind === "audio") {
-                    track.attach(); // Audio tracks create their own hidden element
+                    // Audio tracks handle themselves (they create a hidden audio tag)
+                    track.attach(); 
                 }
             });
 
+            // --- TRACK UNSUBSCRIBED ---
             room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication) => {
                 track.detach();
             });
 
-            // --- LOCAL VIDEO HANDLING ---
+            // --- LOCAL VIDEO ---
             room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
                 if (publication.kind === 'video') {
                     const localEl = document.getElementById("localVideo");
                     publication.track.attach(localEl);
-                    localEl.play().catch(console.error);
+                    localEl.play().catch(e => console.log("Local autoplay error", e));
                 }
             });
 
+            // --- CONNECTION STATES ---
             room.on(LivekitClient.RoomEvent.ConnectionStateChanged, (state) => {
-                if (state === 'connected') log("Connected");
-                if (state === 'reconnecting') log("Reconnecting...");
+                if (state === 'connected') log("Call Active");
+                if (state === 'reconnecting') log("Weak signal, reconnecting...");
                 if (state === 'disconnected') handleLeave();
             });
 
-            // --- CONNECT ---
+            // --- EXECUTE CONNECTION ---
             await room.connect(LIVEKIT_URL, token);
-            log("Publishing...");
-
-            // --- PUBLISH LOCAL TRACKS ---
-            const localTracks = await room.localParticipant.enableCameraAndMicrophone();
             
-            // Fallback: manually attach if event missed
-            const videoTrack = localTracks.find(t => t.kind === 'video');
-            if (videoTrack) {
-                const localEl = document.getElementById("localVideo");
-                videoTrack.attach(localEl);
-                localEl.play().catch(console.error);
-            }
+            log("Starting video...");
+            // Start local camera/mic after successful connection
+            await room.localParticipant.enableCameraAndMicrophone();
 
         } catch (e) {
-            log("Connection Failed: " + e.message, true);
+            log("Connection Failed. Token might be expired.", true);
+            console.error(e);
             modal.style.display = "flex";
             joinBtn.disabled = false;
             joinBtn.textContent = "Retry Connection";
+            document.querySelector(".modal-content p").textContent = "Connection failed. Please refresh.";
         }
     }
 
     // ==============================
-    // 4. CONTROLS UI
+    // 4. BUTTON CONTROLS
     // ==============================
     const micBtn = document.getElementById("micBtn");
     const camBtn = document.getElementById("camBtn");
