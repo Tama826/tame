@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Blind Date Call</title>
+    <title>Blind Friend Call</title>
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
@@ -14,7 +14,7 @@
             --bg-color: #000000;
             --text-color: #ffffff;
             --control-bg: rgba(255, 255, 255, 0.15);
-            --accent-color: #ff2e63;
+            --accent-color: #00ff9d;
             --danger-color: #ff3b30;
             --tame-brand-color: #00ff9d;
         }
@@ -182,7 +182,7 @@
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 10px 25px rgba(255, 46, 99, 0.3);
+            box-shadow: 0 10px 25px rgba(0, 255, 157, 0.3);
             width: 100%;
             max-width: 280px;
             margin-bottom: 20px;
@@ -205,10 +205,10 @@
 <body>
 
     <div id="lobby-screen">
-        <h1 id="lobby-title">It's a Match! ❤️</h1>
-        <p style="color:#888; margin-bottom: 30px; font-size:14px;">Your date is ready.</p>
+        <h1 id="lobby-title">It's a Match! 🤝</h1>
+        <p style="color:#888; margin-bottom: 30px; font-size:14px;">Your friend is ready.</p>
         
-        <button id="start-date-btn">Start Date</button>
+        <button id="start-date-btn">Start Call</button>
         
         <div id="error-msg"></div>
         <p style="margin-top:30px; font-size:11px; color:#444;">Powered by TAME</p>
@@ -216,7 +216,7 @@
 
     <div id="video-stage">
         <div class="waiting-message" id="waiting-msg">
-            <h2>Waiting for your date...</h2>
+            <h2>Waiting for your friend...</h2>
             <p style="font-size: 12px; margin-top: 5px; color:#888;">They will appear here shortly.</p>
         </div>
 
@@ -384,7 +384,7 @@
 
         function handleParticipantLeft() {
             remoteContainer.innerHTML = '';
-            waitingMsg.innerHTML = "<h2>Date Left</h2><p>Your partner disconnected.</p>";
+            waitingMsg.innerHTML = "<h2>Friend Left</h2><p>Your friend disconnected.</p>";
             waitingMsg.style.display = 'block';
         }
 
