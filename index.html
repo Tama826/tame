@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Friend Connect Call</title>
+    <title>Blind Date Call</title>
     
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/livekit-client@1.15.4/dist/livekit-client.umd.min.js"></script>
 
     <style>
         :root {
-            --bg-color: #0f172a;
-            --text-color: #f8fafc;
-            --control-bg: rgba(255, 255, 255, 0.1);
-            --accent-color: #3b82f6;
-            --secondary-color: #8b5cf6;
-            --danger-color: #ef4444;
-            --success-color: #10b981;
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --control-bg: rgba(255, 255, 255, 0.15);
+            --accent-color: #ff2e63;
+            --danger-color: #ff3b30;
             --tame-brand-color: #00ff9d;
         }
 
@@ -43,7 +42,7 @@
             flex: 1;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            background: #111;
             display: none;
         }
 
@@ -59,7 +58,6 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: 12px;
         }
 
         .waiting-message {
@@ -76,16 +74,16 @@
 
         #local-video-container {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 16px;
+            right: 16px;
             width: 100px;
             height: 133px;
-            background: #1e293b;
+            background: #000;
             border-radius: 12px;
-            border: 2px solid var(--accent-color);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             overflow: hidden;
             z-index: 10;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
 
         #local-video-container video {
@@ -98,56 +96,45 @@
         /* --- CONTROLS --- */
         #controls-bar {
             position: absolute;
-            bottom: 70px;
+            bottom: 60px;
             left: 0;
             width: 100%;
             display: flex;
             justify-content: center;
-            gap: 24px;
-            padding: 20px;
+            gap: 20px;
+            padding: 15px;
             z-index: 20;
-            background: linear-gradient(to top, rgba(15, 23, 42, 0.95), transparent);
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
         }
 
         .control-btn {
-            width: 56px;
-            height: 56px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.1);
+            border: none;
             background: var(--control-bg);
             color: white;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            transition: transform 0.2s ease;
         }
 
-        .control-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .control-btn:active { transform: scale(0.95); }
-        .control-btn.active { 
-            background: var(--accent-color);
-            border-color: var(--accent-color);
-        }
-        .control-btn.danger { 
-            background: var(--danger-color);
-            border-color: var(--danger-color);
-        }
+        .control-btn:active { transform: scale(0.9); }
+        .control-btn.active { background: #3390ec; }
+        .control-btn.danger { background: var(--danger-color); }
 
         .icon { width: 24px; height: 24px; fill: currentColor; }
 
-        /* --- BRANDING with TAM animation --- */
+        /* --- BRANDING --- */
         #tame-footer {
             position: absolute;
-            bottom: 20px;
+            bottom: 15px;
             width: 100%;
             text-align: center;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             letter-spacing: 0.5px;
             color: rgba(255, 255, 255, 0.5);
@@ -155,24 +142,9 @@
             pointer-events: none;
         }
         
-        .tam-word {
+        #tame-footer span {
             color: var(--tame-brand-color);
-            display: inline-block;
-            position: relative;
-            animation: tamPulse 2s infinite;
-            text-shadow: 0 0 10px rgba(0, 255, 157, 0.5);
-        }
-
-        @keyframes tamPulse {
-            0%, 100% {
-                transform: scale(1);
-                text-shadow: 0 0 10px rgba(0, 255, 157, 0.5);
-            }
-            50% {
-                transform: scale(1.05);
-                text-shadow: 0 0 20px rgba(0, 255, 157, 0.8),
-                           0 0 30px rgba(0, 255, 157, 0.4);
-            }
+            text-shadow: 0 0 8px rgba(0, 255, 157, 0.4);
         }
 
         /* --- LOBBY SCREEN --- */
@@ -182,135 +154,70 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 100;
-            padding: 30px;
+            padding: 20px;
             text-align: center;
         }
 
         #lobby-title {
-            font-size: 32px;
-            font-weight: 800;
-            margin-bottom: 16px;
-            background: linear-gradient(135deg, #60a5fa, #8b5cf6);
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: -webkit-linear-gradient(45deg, #fff, #aaa);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .lobby-subtitle {
-            color: #94a3b8;
-            margin-bottom: 40px;
-            font-size: 16px;
-            line-height: 1.5;
-            max-width: 300px;
         }
 
         #start-date-btn {
-            background: linear-gradient(135deg, var(--accent-color), var(--secondary-color));
+            background: var(--accent-color);
             color: white;
             border: none;
-            padding: 20px 60px;
-            border-radius: 50px;
+            padding: 18px 50px;
+            border-radius: 30px;
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
-            transition: all 0.3s ease;
+            box-shadow: 0 10px 25px rgba(255, 46, 99, 0.3);
             width: 100%;
-            max-width: 300px;
-            margin-bottom: 30px;
-        }
-
-        #start-date-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 40px rgba(59, 130, 246, 0.4);
-        }
-
-        #start-date-btn:active {
-            transform: translateY(0);
+            max-width: 280px;
+            margin-bottom: 20px;
         }
 
         #error-msg {
             color: var(--danger-color);
-            margin-top: 16px;
-            font-size: 14px;
+            margin-top: 10px;
+            font-size: 13px;
             display: none;
-            background: rgba(239, 68, 68, 0.1);
-            padding: 12px 20px;
-            border-radius: 10px;
-            max-width: 90%;
-            border: 1px solid rgba(239, 68, 68, 0.2);
+            background: rgba(255, 59, 48, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 80%;
         }
 
         #remote-audio-root { display: none; }
-
-        .friend-icon {
-            font-size: 48px;
-            margin-bottom: 24px;
-            animation: float 3s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-
-        /* Connection status */
-        .connection-status {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            color: #94a3b8;
-            z-index: 25;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--success-color);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
     </style>
 </head>
 <body>
 
     <div id="lobby-screen">
-        <div class="friend-icon">🤝</div>
-        <h1 id="lobby-title">Friend Connect!</h1>
-        <p class="lobby-subtitle">Your friend is ready to connect and chat.</p>
+        <h1 id="lobby-title">It's a Match! ❤️</h1>
+        <p style="color:#888; margin-bottom: 30px; font-size:14px;">Your date is ready.</p>
         
-        <button id="start-date-btn">Connect Now</button>
+        <button id="start-date-btn">Start Date</button>
         
         <div id="error-msg"></div>
-        <p style="margin-top:30px; font-size:12px; color:#475569;">
-            Powered by <span class="tam-word">TAME</span>
-        </p>
+        <p style="margin-top:30px; font-size:11px; color:#444;">Powered by TAME</p>
     </div>
 
     <div id="video-stage">
-        <div class="connection-status">
-            <div class="status-dot"></div>
-            <span>Connected</span>
-        </div>
-
         <div class="waiting-message" id="waiting-msg">
-            <h2>Looking for your friend...</h2>
-            <p style="font-size: 14px; margin-top: 8px; color:#94a3b8;">They'll join you in a moment!</p>
+            <h2>Waiting for your date...</h2>
+            <p style="font-size: 12px; margin-top: 5px; color:#888;">They will appear here shortly.</p>
         </div>
 
         <div id="remote-video-container"></div>
@@ -335,48 +242,10 @@
     <div id="remote-audio-root"></div>
 
     <div id="tame-footer">
-        Developed by <span class="tam-word">TAME</span> • Friend Connect
+        Developed by <span>TAME</span>
     </div>
 
     <script>
-        // Function to animate TAM words in text content
-        function animateTamWords() {
-            const elements = document.querySelectorAll('body *:not(script):not(style)');
-            
-            elements.forEach(element => {
-                element.childNodes.forEach(node => {
-                    if (node.nodeType === Node.TEXT_NODE) {
-                        const text = node.textContent;
-                        const words = text.split(/(\s+)/);
-                        const fragment = document.createDocumentFragment();
-                        
-                        words.forEach(word => {
-                            if (/\s/.test(word)) {
-                                fragment.appendChild(document.createTextNode(word));
-                            } else if (word.toLowerCase().includes('tam')) {
-                                const span = document.createElement('span');
-                                span.className = 'tam-word';
-                                span.textContent = word;
-                                fragment.appendChild(span);
-                            } else {
-                                fragment.appendChild(document.createTextNode(word));
-                            }
-                        });
-                        
-                        node.parentNode.replaceChild(fragment, node);
-                    }
-                });
-            });
-        }
-
-        // Initial animation on page load
-        document.addEventListener('DOMContentLoaded', animateTamWords);
-        // Also run after dynamic content changes
-        new MutationObserver(animateTamWords).observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-
         // =========================================================
         // 1. CONFIGURATION (YOU MUST EDIT THIS)
         // =========================================================
@@ -515,7 +384,7 @@
 
         function handleParticipantLeft() {
             remoteContainer.innerHTML = '';
-            waitingMsg.innerHTML = "<h2>Friend Disconnected</h2><p>Your friend has left the call.</p>";
+            waitingMsg.innerHTML = "<h2>Date Left</h2><p>Your partner disconnected.</p>";
             waitingMsg.style.display = 'block';
         }
 
@@ -523,7 +392,7 @@
             videoStage.style.display = 'none';
             lobbyScreen.style.display = 'flex';
             startBtn.disabled = false;
-            startBtn.textContent = "Reconnect";
+            startBtn.textContent = "Rejoin";
             remoteContainer.innerHTML = '';
             audioRoot.innerHTML = '';
             tg.close(); 
