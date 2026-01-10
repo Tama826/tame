@@ -5,109 +5,80 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TAME Video Chat</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client@2.5.9/dist/livekit-client.umd.min.js"></script>
 
 <style>
-    /* Reset & Base Styles */
     body {
         margin: 0;
         background: #000;
         color: #fff;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-family: sans-serif;
         height: 100vh;
-        height: 100dvh; /* Mobile viewport fix */
         display: flex;
         flex-direction: column;
         overflow: hidden;
     }
-
-    /* Status Bar */
     #status {
-        padding: 8px;
+        padding: 10px;
         text-align: center;
         background: #111;
-        font-size: 14px;
-        color: #aaa;
-        flex-shrink: 0;
-        border-bottom: 1px solid #222;
+        font-size: 12px;
+        color: #ffa; /* Yellow for visibility */
+        white-space: pre-wrap; /* Wrap long error messages */
     }
-
-    /* Video Container */
     #videos {
         flex: 1;
         position: relative;
         background: #000;
-        overflow: hidden;
     }
-
-    /* Video Elements */
     video {
         object-fit: cover;
-        display: block;
         background: #111;
     }
-
-    /* Remote Video (Full Screen) */
-    .remote-wrapper {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
+    /* Full screen remote */
     #remoteVideo {
         width: 100%;
         height: 100%;
     }
-
-    /* Local Video (Picture-in-Picture) */
+    /* PiP local */
     .local-wrapper {
         position: absolute;
-        bottom: 20px;
+        bottom: 90px;
         right: 20px;
         width: 100px;
-        height: 134px; /* 3:4 aspect ratio approx */
+        height: 140px;
         border: 2px solid #4CAF50;
-        border-radius: 12px;
+        border-radius: 10px;
         overflow: hidden;
         z-index: 10;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         background: #000;
     }
     #localVideo {
         width: 100%;
         height: 100%;
-        transform: scaleX(-1); /* Mirror local video */
+        transform: scaleX(-1);
     }
-
-    /* Controls */
     #controls {
-        padding: 20px;
+        height: 80px;
         display: flex;
         justify-content: center;
+        align-items: center;
         gap: 15px;
-        background: #000;
-        flex-shrink: 0;
-        padding-bottom: max(20px, env(safe-area-inset-bottom)); /* iPhone Safe Area */
-        border-top: 1px solid #222;
+        background: #111;
+        padding-bottom: env(safe-area-inset-bottom);
     }
-
     button {
         padding: 12px 20px;
-        border-radius: 30px;
+        border-radius: 25px;
         border: none;
+        font-weight: bold;
         cursor: pointer;
-        font-weight: 600;
-        font-size: 14px;
-        transition: opacity 0.2s;
-        min-width: 80px;
     }
-    button:active { opacity: 0.7; }
+    .btn-blue { background: #2196F3; color: white; }
+    .btn-red { background: #f44336; color: white; }
+    .btn-gray { background: #444; color: white; }
     
-    .btn-control { background: #333; color: white; }
-    .btn-leave { background: #ff3b30; color: white; }
-    .btn-active { background: #fff; color: #000; } /* State for muted/off */
-
-    /* Permission Modal */
+    /* Modal */
     #permissionModal {
         position: fixed;
         inset: 0;
@@ -115,24 +86,20 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 999;
+        z-index: 100;
     }
     .modal-content {
         background: #222;
         padding: 30px;
-        border-radius: 16px;
+        border-radius: 15px;
         text-align: center;
-        max-width: 80%;
-        width: 300px;
+        width: 80%;
     }
-    .modal-content h3 { margin: 0 0 10px 0; }
-    .modal-content p { color: #ccc; margin-bottom: 25px; font-size: 15px; }
     #allowBtn {
-        background: #2196F3;
-        color: white;
-        font-size: 16px;
         width: 100%;
-        padding: 14px;
+        font-size: 18px;
+        padding: 15px;
+        margin-top: 20px;
     }
 </style>
 </head>
@@ -142,220 +109,142 @@
 <div id="permissionModal">
     <div class="modal-content">
         <h3>Start Video Call</h3>
-        <p>Permissions are required to join the room.</p>
-        <button id="allowBtn">Join Call</button>
+        <p>Tap below to join</p>
+        <button id="allowBtn" class="btn-blue">Join Call</button>
     </div>
 </div>
 
-<div id="status">Waiting for permissions...</div>
+<div id="status">Ready.</div>
 
 <div id="videos">
-    <div class="remote-wrapper">
-        <video id="remoteVideo" autoplay playsinline></video>
-    </div>
-    
+    <video id="remoteVideo" autoplay playsinline></video>
     <div class="local-wrapper">
         <video id="localVideo" autoplay muted playsinline></video>
     </div>
 </div>
 
 <div id="controls">
-    <button id="micBtn" class="btn-control">Mute</button>
-    <button id="camBtn" class="btn-control">Video</button>
-    <button id="leaveBtn" class="btn-leave">Leave</button>
+    <button id="micBtn" class="btn-gray">Mute</button>
+    <button id="leaveBtn" class="btn-red">Leave</button>
 </div>
 
-<script type="module">
-import {
-    Room,
-    RoomEvent,
-    VideoPresets
-} from "https://unpkg.com/livekit-client@1.15.6/dist/livekit-client.esm.min.js?module";
-
-// --- Configuration for Low Bandwidth (Ethiopia Optimization) ---
-const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud";
-const VIDEO_CONFIG = {
-    resolution: { width: 320, height: 240 }, // QVGA is efficient for mobile
-    frameRate: 15, // 15 FPS saves bandwidth
-    facingMode: 'user'
-};
-
-// --- State Variables ---
-let room;
-let isMicOn = true;
-let isCamOn = true;
-
-// --- DOM Elements ---
-const statusEl = document.getElementById("status");
-const modal = document.getElementById("permissionModal");
-const allowBtn = document.getElementById("allowBtn");
-const micBtn = document.getElementById("micBtn");
-const camBtn = document.getElementById("camBtn");
-const leaveBtn = document.getElementById("leaveBtn");
-
-// --- Telegram WebApp Init ---
-if (window.Telegram?.WebApp) {
-    Telegram.WebApp.ready();
-    Telegram.WebApp.expand();
-    Telegram.WebApp.enableClosingConfirmation();
-}
-
-// --- 1. Helper: Get Token ---
-function getToken() {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("token");
-}
-
-// --- 2. Helper: Update UI Buttons ---
-function updateControls() {
-    micBtn.textContent = isMicOn ? "Mute" : "Unmute";
-    micBtn.className = isMicOn ? "btn-control" : "btn-control btn-active";
-    
-    camBtn.textContent = isCamOn ? "Video" : "Start";
-    camBtn.className = isCamOn ? "btn-control" : "btn-control btn-active";
-}
-
-// --- 3. CRITICAL: Handle Permissions via User Gesture ---
-allowBtn.onclick = async () => {
-    allowBtn.disabled = true;
-    allowBtn.textContent = "Requesting...";
-
-    try {
-        // Step A: Trigger getUserMedia inside the click handler
-        // This satistfies the browser's security requirement
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: true, 
-            video: VIDEO_CONFIG
-        });
-
-        // Step B: Stop the tracks immediately (LiveKit will request them again cleanly)
-        stream.getTracks().forEach(track => track.stop());
-
-        // Step C: Proceed to connect
-        modal.style.display = "none";
-        await connectToRoom();
-
-    } catch (error) {
-        console.error("Permission Error:", error);
-        allowBtn.disabled = false;
-        allowBtn.textContent = "Try Again";
-        statusEl.textContent = "Permission denied. Check settings.";
-        alert("Camera/Mic access was denied. Please enable them in your settings.");
+<script>
+    // 1. GLOBAL ERROR LOGGING (So you can see errors on phone)
+    const statusEl = document.getElementById("status");
+    function log(msg) {
+        console.log(msg);
+        statusEl.textContent = msg;
     }
-};
+    window.onerror = function(message, source, lineno, colno, error) {
+        log("ERR: " + message);
+    };
 
-// --- 4. LiveKit Connection Logic ---
-async function connectToRoom() {
-    const token = getToken();
-    if (!token) {
-        statusEl.textContent = "Error: Token missing in URL";
-        return;
-    }
-
-    statusEl.textContent = "Connecting to server...";
-
-    // Initialize Room with adaptive logic
-    room = new Room({
-        adaptiveStream: true,
-        dynacast: true,
-        publishDefaults: {
-            videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360], // Low-res layers
-            videoCodec: 'vp8',
-            dtx: true, // Audio Discontinuous Transmission (Saves data when silent)
-            red: true, // Audio Redundancy (Helps with packet loss)
-        }
-    });
-
-    // Set up Event Listeners
-    setupRoomEvents();
-
-    try {
-        // Connect to LiveKit Cloud
-        await room.connect(LIVEKIT_URL, token);
-        statusEl.textContent = "Connected";
-
-        // Enable Camera/Mic with specific low-bandwidth constraints
-        // Note: browser will not prompt again because we already got permission in step 3
-        await room.localParticipant.enableCameraAndMicrophone();
-
-        // Attach Local Video
-        const localTrack = room.localParticipant.videoTrackPublications.values().next().value?.track;
-        if (localTrack) {
-            localTrack.attach(document.getElementById("localVideo"));
-        }
-
-    } catch (error) {
-        console.error("Connection Failed:", error);
-        statusEl.textContent = "Connection Failed";
-        modal.style.display = "flex"; // Show modal again to retry
-        allowBtn.disabled = false;
-        allowBtn.textContent = "Retry Connection";
-    }
-}
-
-// --- 5. Room Event Handling ---
-function setupRoomEvents() {
-    // A. Handle Remote Participants Joining
-    room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-        if (track.kind === "video") {
-            track.attach(document.getElementById("remoteVideo"));
-        } else if (track.kind === "audio") {
-            track.attach(); // Auto-attaches to a hidden audio element
-        }
-    });
-
-    // B. Handle Disconnects
-    room.on(RoomEvent.TrackUnsubscribed, (track) => {
-        track.detach();
-    });
-
-    // C. Connection State Updates
-    room.on(RoomEvent.ConnectionStateChanged, (state) => {
-        if (state === 'connected') statusEl.textContent = "Connected";
-        else if (state === 'reconnecting') statusEl.textContent = "Weak signal... Reconnecting";
-        else if (state === 'disconnected') leaveCall();
-    });
-
-    // D. Sync Local Mute State (if changed by system)
-    room.localParticipant.on('trackMuted', (pub) => {
-        if (pub.kind === 'audio') { isMicOn = false; updateControls(); }
-        if (pub.kind === 'video') { isCamOn = false; updateControls(); }
-    });
-}
-
-// --- 6. User Controls ---
-micBtn.onclick = async () => {
-    if (!room) return;
-    isMicOn = !isMicOn;
-    await room.localParticipant.setMicrophoneEnabled(isMicOn);
-    updateControls();
-};
-
-camBtn.onclick = async () => {
-    if (!room) return;
-    isCamOn = !isCamOn;
-    await room.localParticipant.setCameraEnabled(isCamOn);
-    updateControls();
-};
-
-leaveBtn.onclick = () => {
-    leaveCall();
-};
-
-// --- 7. Cleanup & Exit ---
-function leaveCall() {
-    if (room) {
-        room.disconnect();
-    }
-    statusEl.textContent = "Disconnected";
-    
-    if (window.Telegram?.WebApp) {
-        Telegram.WebApp.close();
+    // 2. CHECK IF LIVEKIT LOADED
+    if (typeof LivekitClient === 'undefined') {
+        log("CRITICAL: LiveKit library failed to load.");
     } else {
-        window.location.href = "about:blank";
+        log("Library loaded. Waiting for user...");
     }
-}
-</script>
 
+    // 3. INIT TELEGRAM
+    if (window.Telegram?.WebApp) {
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
+    }
+
+    let room;
+    const modal = document.getElementById("permissionModal");
+    const LIVEKIT_URL = "wss://video-20qatdd3.livekit.cloud"; // Your URL
+
+    // 4. THE BUTTON CLICK (Logic decoupled to ensure it runs)
+    document.getElementById("allowBtn").onclick = async function() {
+        const btn = this;
+        btn.disabled = true;
+        btn.textContent = "Requesting...";
+        
+        try {
+            // CHECK BROWSER SUPPORT
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error("Camera API not supported or insecure context (HTTP?)");
+            }
+
+            // A. TRIGGER PERMISSION
+            log("Requesting Camera...");
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: { width: 320, height: 240, facingMode: 'user' }
+            });
+            
+            // Stop tracks immediately (LiveKit will re-acquire them)
+            stream.getTracks().forEach(t => t.stop());
+            
+            // B. HIDE MODAL & CONNECT
+            modal.style.display = "none";
+            connectToLiveKit();
+
+        } catch (e) {
+            log("PERM ERROR: " + e.message);
+            btn.disabled = false;
+            btn.textContent = "Try Again";
+            alert("Error: " + e.message);
+        }
+    };
+
+    async function connectToLiveKit() {
+        const token = new URLSearchParams(location.search).get("token");
+        if (!token) {
+            log("ERROR: Token missing in URL");
+            return;
+        }
+
+        log("Connecting to Room...");
+
+        try {
+            // Using Global LivekitClient (UMD)
+            room = new LivekitClient.Room({
+                adaptiveStream: true,
+                dynacast: true
+            });
+
+            // HANDLE TRACKS
+            room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+                const remoteEl = document.getElementById("remoteVideo");
+                if (track.kind === "video") track.attach(remoteEl);
+                if (track.kind === "audio") track.attach();
+            });
+
+            // CONNECT
+            await room.connect(LIVEKIT_URL, token);
+            log("Connected!");
+
+            // PUBLISH LOCAL
+            await room.localParticipant.enableCameraAndMicrophone();
+            
+            const localEl = document.getElementById("localVideo");
+            const localTrack = Array.from(room.localParticipant.videoTrackPublications.values())[0]?.track;
+            if (localTrack) localTrack.attach(localEl);
+
+        } catch (e) {
+            log("CONN ERROR: " + e.message);
+            modal.style.display = "flex";
+            document.getElementById("allowBtn").disabled = false;
+            document.getElementById("allowBtn").textContent = "Retry";
+        }
+    }
+
+    // CONTROLS
+    document.getElementById("leaveBtn").onclick = () => {
+        if (room) room.disconnect();
+        Telegram.WebApp.close();
+    };
+
+    document.getElementById("micBtn").onclick = () => {
+        if (!room) return;
+        const isMuted = !room.localParticipant.isMicrophoneEnabled;
+        room.localParticipant.setMicrophoneEnabled(isMuted);
+        document.getElementById("micBtn").textContent = isMuted ? "Mute" : "Unmute";
+    };
+
+</script>
 </body>
 </html>
