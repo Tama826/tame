@@ -1,380 +1,70 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TAME Video Chat</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            height: 100vh;
-            overflow-x: hidden;
-        }
-
-        #container {
-            max-width: 100%;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            padding: 10px;
-        }
-
-        /* Header */
-        #header {
-            text-align: center;
-            padding: 15px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            margin-bottom: 15px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        #status {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 5px;
-            color: #4fc3f7;
-        }
-
-        #roomInfo {
-            font-size: 14px;
-            opacity: 0.8;
-        }
-
-        /* Video Grid */
-        #videoContainer {
-            flex: 1;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-            position: relative;
-        }
-
-        .video-wrapper {
-            position: relative;
-            border-radius: 15px;
-            overflow: hidden;
-            background: #000;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            transition: transform 0.3s ease;
-        }
-
-        .video-wrapper:hover {
-            transform: scale(1.02);
-        }
-
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            background: #111;
-            display: block;
-        }
-
-        .video-label {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .local-label {
-            background: linear-gradient(90deg, #4CAF50, #2E7D32);
-        }
-
-        .remote-label {
-            background: linear-gradient(90deg, #2196F3, #1565C0);
-        }
-
-        /* Waiting Message */
-        #waiting {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 30px;
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            display: none;
-            z-index: 10;
-        }
-
-        #waiting i {
-            font-size: 48px;
-            margin-bottom: 15px;
-            color: #4fc3f7;
-        }
-
-        #waiting h3 {
-            margin-bottom: 10px;
-            font-size: 20px;
-        }
-
-        #waiting p {
-            opacity: 0.8;
-            font-size: 14px;
-        }
-
-        /* Controls */
-        #controls {
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(20px);
-            border-radius: 25px;
-            padding: 15px 25px;
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            flex-wrap: wrap;
-        }
-
-        .control-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: white;
-            padding: 12px 25px;
-            border-radius: 50px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s ease;
-            min-width: 120px;
-            justify-content: center;
-        }
-
-        .control-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-
-        .control-btn:active {
-            transform: translateY(0);
-        }
-
-        #micBtn {
-            background: linear-gradient(90deg, #4CAF50, #2E7D32);
-        }
-
-        #micBtn.muted {
-            background: linear-gradient(90deg, #f44336, #c62828);
-        }
-
-        #camBtn {
-            background: linear-gradient(90deg, #2196F3, #1565C0);
-        }
-
-        #camBtn.off {
-            background: linear-gradient(90deg, #ff9800, #ef6c00);
-        }
-
-        #endBtn {
-            background: linear-gradient(90deg, #f44336, #c62828);
-        }
-
-        /* Footer */
-        #footer {
-            text-align: center;
-            padding: 15px;
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            margin-top: 10px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .developer-text {
-            font-size: 14px;
-            opacity: 0.9;
-            font-weight: 600;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            background: linear-gradient(90deg, #FF4081, #7B1FA2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        /* Permission Modal */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; color: white; font-family: Arial, sans-serif; height: 100vh; }
+        #container { max-width: 100%; height: 100vh; padding: 10px; display: flex; flex-direction: column; }
+        #status { background: #333; padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align: center; }
+        #roomInfo { font-size: 12px; opacity: 0.8; text-align: center; }
+        #videos { flex: 1; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; }
+        video { width: 100%; max-width: 400px; height: 300px; background: #111; border-radius: 10px; object-fit: cover; }
+        .local { border: 3px solid #4CAF50; transform: scaleX(-1); }
+        .remote { border: 3px solid #2196F3; }
+        #waiting { text-align: center; padding: 20px; color: #aaa; }
+        #controls { display: flex; justify-content: center; gap: 10px; padding: 15px; background: rgba(0,0,0,0.8); border-radius: 10px; }
+        button { padding: 12px 20px; border: none; border-radius: 50px; font-size: 14px; cursor: pointer; min-width: 100px; }
+        #mic { background: #4CAF50; color: white; }
+        #cam { background: #2196F3; color: white; }
+        #end { background: #f44336; color: white; }
+        #footer { text-align: center; padding: 10px; margin-top: 10px; font-size: 12px; color: #888; }
+        .developer { color: #FF4081; font-weight: bold; letter-spacing: 1px; }
+        
+        /* Connection status */
+        .connected { color: #4CAF50; }
+        .connecting { color: #FF9800; }
+        .error { color: #f44336; }
+        
+        /* Permission modal */
         #permissionModal {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.95);
+            background: rgba(0,0,0,0.9);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 1000;
-            backdrop-filter: blur(10px);
         }
-
+        
         .modal-content {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            background: #222;
             padding: 30px;
-            border-radius: 20px;
+            border-radius: 15px;
             text-align: center;
             max-width: 400px;
             width: 90%;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
-
-        .modal-content i {
-            font-size: 60px;
-            color: #4fc3f7;
-            margin-bottom: 20px;
-        }
-
-        .modal-content h2 {
+        
+        .modal-content h3 {
             margin-bottom: 15px;
-            font-size: 24px;
+            color: #4CAF50;
         }
-
-        .modal-content p {
-            margin-bottom: 25px;
-            opacity: 0.8;
-            line-height: 1.5;
-        }
-
+        
         #allowBtn {
-            background: linear-gradient(90deg, #4CAF50, #2E7D32);
+            background: #4CAF50;
             color: white;
             border: none;
-            padding: 15px 40px;
-            border-radius: 50px;
-            font-size: 18px;
-            font-weight: 600;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            width: 100%;
-        }
-
-        #allowBtn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 10px 20px rgba(76, 175, 80, 0.3);
-        }
-
-        /* Loading Animation */
-        .loading-dots {
-            display: inline-flex;
-            gap: 5px;
-            margin-left: 10px;
-        }
-
-        .loading-dots span {
-            width: 8px;
-            height: 8px;
-            background: #4fc3f7;
-            border-radius: 50%;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-
-        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
-        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
-
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1.0); }
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            #videoContainer {
-                grid-template-columns: 1fr;
-            }
-            
-            .control-btn {
-                padding: 10px 20px;
-                font-size: 14px;
-                min-width: 100px;
-            }
-            
-            #controls {
-                padding: 12px 15px;
-                gap: 10px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            #controls {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .control-btn {
-                width: 100%;
-                max-width: 200px;
-            }
-        }
-
-        /* Connection Status */
-        .connection-status {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 10px;
-            font-size: 14px;
-        }
-
-        .status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-
-        .status-connected { background: #4CAF50; box-shadow: 0 0 10px #4CAF50; }
-        .status-connecting { background: #FF9800; animation: pulse 1.5s infinite; }
-        .status-disconnected { background: #f44336; }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* Audio Indicator */
-        .audio-indicator {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #f44336;
-            display: none;
-        }
-
-        .audio-active {
-            background: #4CAF50;
-            animation: audioPulse 1s infinite;
-        }
-
-        @keyframes audioPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+            margin-top: 15px;
         }
     </style>
 </head>
@@ -382,577 +72,249 @@
     <!-- Permission Modal -->
     <div id="permissionModal">
         <div class="modal-content">
-            <i class="fas fa-video"></i>
-            <h2>Camera & Microphone Access</h2>
-            <p>To join the video chat, please allow access to your camera and microphone.</p>
-            <p><small>This permission is required for video and audio communication.</small></p>
-            <button id="allowBtn">
-                <i class="fas fa-check"></i> Allow Access
-            </button>
+            <h3>Camera & Microphone Access</h3>
+            <p>Click "Allow" to start video chat</p>
+            <button id="allowBtn">Allow Access</button>
         </div>
     </div>
 
-    <!-- Main Container -->
     <div id="container">
-        <!-- Header -->
-        <div id="header">
-            <div id="status">Connecting to video chat...</div>
-            <div id="roomInfo">Room: <span id="roomName">-</span></div>
-            <div class="connection-status">
-                <span class="status-indicator status-connecting"></span>
-                <span id="connectionText">Connecting...</span>
-            </div>
+        <div id="status">Loading video chat...</div>
+        <div id="roomInfo">Room: -</div>
+        
+        <div id="videos">
+            <video id="localVideo" autoplay muted playsinline class="local"></video>
+            <video id="remoteVideo" autoplay playsinline class="remote"></video>
+            <div id="waiting">Waiting for partner to join...</div>
         </div>
-
-        <!-- Video Container -->
-        <div id="videoContainer">
-            <!-- Local Video -->
-            <div class="video-wrapper">
-                <video id="localVideo" autoplay muted playsinline></video>
-                <div class="video-label local-label">You</div>
-                <div class="audio-indicator" id="localAudioIndicator"></div>
-            </div>
-
-            <!-- Remote Video will be added here -->
-            
-            <!-- Waiting Message -->
-            <div id="waiting">
-                <i class="fas fa-user-friends"></i>
-                <h3>Waiting for Partner</h3>
-                <p>Your partner will appear here once they join</p>
-            </div>
-        </div>
-
-        <!-- Controls -->
+        
         <div id="controls">
-            <button class="control-btn" id="micBtn" onclick="toggleMic()">
-                <i class="fas fa-microphone"></i>
-                <span>Mute</span>
-            </button>
-            <button class="control-btn" id="camBtn" onclick="toggleCam()">
-                <i class="fas fa-video"></i>
-                <span>Video Off</span>
-            </button>
-            <button class="control-btn" id="endBtn" onclick="leaveCall()">
-                <i class="fas fa-phone-slash"></i>
-                <span>Leave</span>
-            </button>
+            <button id="mic" onclick="toggleMic()">Mute</button>
+            <button id="cam" onclick="toggleCam()">Video</button>
+            <button id="end" onclick="leaveCall()">Leave</button>
         </div>
-
-        <!-- Footer -->
+        
         <div id="footer">
-            <div class="developer-text">Developed by TAME</div>
+            <span class="developer">Developed by TAME</span>
         </div>
     </div>
 
-    <!-- LiveKit Client -->
-    <script src="https://cdn.jsdelivr.net/npm/livekit-client@1.8.1/dist/livekit-client.umd.min.js"></script>
-    
     <script>
-        // LiveKit Configuration
+        // SIMPLE FIXED VIDEO CHAT
+        // No complex LiveKit loading errors
+        
         const LIVEKIT_URL = 'wss://video-20qatdd3.livekit.cloud';
         let room = null;
-        let localTracks = [];
-        let isConnecting = false;
-        let permissionGranted = false;
-
-        // DOM Elements
-        const permissionModal = document.getElementById('permissionModal');
-        const statusElement = document.getElementById('status');
-        const roomNameElement = document.getElementById('roomName');
-        const connectionText = document.getElementById('connectionText');
-        const statusIndicator = document.querySelector('.status-indicator');
-        const localVideo = document.getElementById('localVideo');
-        const localAudioIndicator = document.getElementById('localAudioIndicator');
-        const waitingElement = document.getElementById('waiting');
-        const videoContainer = document.getElementById('videoContainer');
-        const micBtn = document.getElementById('micBtn');
-        const camBtn = document.getElementById('camBtn');
-        const allowBtn = document.getElementById('allowBtn');
-
+        let localVideo = document.getElementById('localVideo');
+        let remoteVideo = document.getElementById('remoteVideo');
+        let status = document.getElementById('status');
+        let roomInfo = document.getElementById('roomInfo');
+        let waiting = document.getElementById('waiting');
+        let permissionModal = document.getElementById('permissionModal');
+        let localStream = null;
+        let remoteStream = null;
+        
         // Get token from URL
-        function getTokenFromURL() {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('token');
+        function getToken() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('token');
         }
-
-        // Request Media Permissions
-        async function requestMediaPermissions() {
+        
+        // Ask for permissions
+        async function requestPermissions() {
             try {
-                console.log('Requesting media permissions...');
-                
-                // Test audio permissions first
-                const audioStream = await navigator.mediaDevices.getUserMedia({ 
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true,
-                        channelCount: 1,
-                        sampleRate: 16000
-                    }
-                });
-                
-                // Stop test stream
-                audioStream.getTracks().forEach(track => track.stop());
-                
-                // Test video permissions
-                const videoStream = await navigator.mediaDevices.getUserMedia({ 
+                // Get media stream for local video
+                localStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         width: { ideal: 640 },
                         height: { ideal: 480 },
-                        frameRate: { ideal: 15 },
-                        facingMode: 'user'
+                        frameRate: { ideal: 15 }
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
                     }
                 });
                 
-                // Stop test stream
-                videoStream.getTracks().forEach(track => track.stop());
+                // Display local video
+                localVideo.srcObject = localStream;
                 
-                console.log('Media permissions granted');
+                // Hide permission modal
+                permissionModal.style.display = 'none';
+                
+                // Connect to room
+                connectToRoom();
+                
                 return true;
-                
             } catch (error) {
                 console.error('Permission error:', error);
-                showError('Please allow camera and microphone access to join the call.');
+                status.innerHTML = '<span class="error">Error: Please allow camera & microphone access</span>';
                 return false;
             }
         }
-
-        // Show/Hide Permission Modal
-        function showPermissionModal(show) {
-            permissionModal.style.display = show ? 'flex' : 'none';
-        }
-
-        // Update Connection Status
-        function updateConnectionStatus(status, text) {
-            statusIndicator.className = 'status-indicator ' + status;
-            connectionText.textContent = text;
-        }
-
-        // Show Error Message
-        function showError(message) {
-            statusElement.textContent = 'Error: ' + message;
-            statusElement.style.color = '#f44336';
-            updateConnectionStatus('status-disconnected', 'Connection Failed');
-        }
-
-        // Show Success Message
-        function showSuccess(message) {
-            statusElement.textContent = message;
-            statusElement.style.color = '#4CAF50';
-        }
-
-        // Create Video Element for Participant
-        function createVideoElement(participant, track, isLocal = false) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'video-wrapper';
-            wrapper.id = `video-${participant.identity}`;
-            
-            const video = document.createElement('video');
-            video.autoplay = true;
-            video.playsInline = true;
-            video.id = `video-${participant.identity}-video`;
-            
-            if (isLocal) {
-                video.muted = true;
-                video.style.transform = 'scaleX(-1)';
-            }
-            
-            const label = document.createElement('div');
-            label.className = `video-label ${isLocal ? 'local-label' : 'remote-label'}`;
-            label.textContent = isLocal ? 'You' : participant.identity.replace('user_', 'User ');
-            
-            const audioIndicator = document.createElement('div');
-            audioIndicator.className = 'audio-indicator';
-            audioIndicator.id = `audio-${participant.identity}`;
-            
-            wrapper.appendChild(video);
-            wrapper.appendChild(label);
-            wrapper.appendChild(audioIndicator);
-            
-            return { wrapper, video, audioIndicator };
-        }
-
-        // Connect to LiveKit Room
+        
+        // Connect to LiveKit room
         async function connectToRoom() {
-            if (isConnecting) return;
-            
-            const token = getTokenFromURL();
+            const token = getToken();
             if (!token) {
-                showError('No access token provided');
+                status.innerHTML = '<span class="error">Error: No token provided</span>';
                 return;
             }
             
-            isConnecting = true;
-            showPermissionModal(false);
-            updateConnectionStatus('status-connecting', 'Connecting...');
+            status.innerHTML = '<span class="connecting">Connecting to video chat...</span>';
             
             try {
+                // Load LiveKit dynamically
+                const { Room, RoomEvent } = await import('https://unpkg.com/livekit-client@1.8.1/dist/livekit-client.esm.min.js');
+                
                 // Create room
-                room = new LivekitClient.Room({
+                room = new Room({
                     adaptiveStream: true,
                     dynacast: true,
                     publishDefaults: {
                         videoCodec: 'vp8',
                         videoEncoding: {
                             maxBitrate: 250000,
-                            maxFramerate: 20
-                        },
-                        audioPreset: {
-                            maxBitrate: 32000
+                            maxFramerate: 15
                         }
                     }
                 });
                 
                 // Setup event listeners
-                setupRoomEvents();
+                setupRoomEvents(room, RoomEvent);
                 
                 // Connect to room
                 await room.connect(LIVEKIT_URL, token);
                 
-                // Update UI
-                roomNameElement.textContent = room.name;
-                showSuccess(`Connected to: ${room.name}`);
-                updateConnectionStatus('status-connected', 'Connected');
-                
-                // Hide waiting if there are remote participants
-                if (room.remoteParticipants.size > 0) {
-                    waitingElement.style.display = 'none';
-                }
+                // Update status
+                status.innerHTML = `<span class="connected">Connected to room: ${room.name}</span>`;
+                roomInfo.textContent = `Room: ${room.name}`;
                 
                 // Publish local tracks
-                await publishLocalTracks();
-                
-                console.log('Room connected successfully');
+                if (localStream) {
+                    for (const track of localStream.getTracks()) {
+                        await room.localParticipant.publishTrack(track);
+                    }
+                }
                 
             } catch (error) {
                 console.error('Connection error:', error);
-                showError(error.message || 'Failed to connect');
-                updateConnectionStatus('status-disconnected', 'Failed to connect');
-                isConnecting = false;
+                status.innerHTML = `<span class="error">Connection failed: ${error.message}</span>`;
             }
         }
-
-        // Setup Room Event Listeners
-        function setupRoomEvents() {
-            if (!room) return;
-
-            // Local Track Published
-            room.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication, participant) => {
-                console.log('Local track published:', publication.kind);
+        
+        // Setup room events
+        function setupRoomEvents(room, RoomEvent) {
+            // Track subscribed (remote user)
+            room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                console.log('Remote track subscribed:', track.kind);
                 
-                if (publication.kind === LivekitClient.Track.Kind.Video && publication.track) {
-                    const track = publication.track;
-                    const videoElement = document.getElementById('localVideo');
-                    if (videoElement) {
-                        track.attach(videoElement);
-                    }
-                }
-            });
-
-            // Remote Track Subscribed
-            room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-                console.log(`Remote track subscribed: ${track.kind} from ${participant.identity}`);
-                
-                // Hide waiting message
-                waitingElement.style.display = 'none';
-                
-                // Remove existing video if any
-                const existingVideo = document.getElementById(`video-${participant.identity}`);
-                if (existingVideo) {
-                    existingVideo.remove();
+                if (track.kind === 'video') {
+                    waiting.style.display = 'none';
+                    remoteVideo.style.display = 'block';
+                    track.attach(remoteVideo);
                 }
                 
-                // Create new video element
-                const { wrapper, video, audioIndicator } = createVideoElement(participant, track, false);
-                
-                // Attach track to video element
-                track.attach(video);
-                
-                // Handle audio track
-                if (track.kind === LivekitClient.Track.Kind.Audio) {
+                if (track.kind === 'audio') {
                     const audioElement = new Audio();
                     track.attach(audioElement);
-                    audioElement.play().catch(e => console.log('Audio play failed:', e));
-                    
-                    // Monitor audio levels
-                    monitorAudioLevel(participant.identity, audioElement);
-                }
-                
-                // Add to container
-                videoContainer.appendChild(wrapper);
-            });
-
-            // Remote Track Unsubscribed
-            room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-                console.log(`Track unsubscribed from ${participant.identity}`);
-                
-                const videoElement = document.getElementById(`video-${participant.identity}`);
-                if (videoElement) {
-                    videoElement.remove();
-                }
-                
-                // Show waiting if no remote videos
-                if (room.remoteParticipants.size === 0) {
-                    waitingElement.style.display = 'block';
+                    audioElement.play().catch(e => console.log('Audio play error:', e));
                 }
             });
-
-            // Participant Connected
-            room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
-                console.log(`${participant.identity} connected`);
-                waitingElement.style.display = 'none';
+            
+            // Participant connected
+            room.on(RoomEvent.ParticipantConnected, (participant) => {
+                console.log('Participant connected:', participant.identity);
+                waiting.style.display = 'none';
             });
-
-            // Participant Disconnected
-            room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
-                console.log(`${participant.identity} disconnected`);
-                
-                const videoElement = document.getElementById(`video-${participant.identity}`);
-                if (videoElement) {
-                    videoElement.remove();
-                }
-                
-                // Show waiting if no participants
-                if (room.remoteParticipants.size === 0) {
-                    waitingElement.style.display = 'block';
-                }
+            
+            // Participant disconnected
+            room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+                console.log('Participant disconnected:', participant.identity);
+                remoteVideo.style.display = 'none';
+                waiting.style.display = 'block';
             });
-
-            // Connection State Changed
-            room.on(LivekitClient.RoomEvent.ConnectionStateChanged, (state) => {
-                console.log('Connection state changed:', state);
+            
+            // Connection state changed
+            room.on(RoomEvent.ConnectionStateChanged, (state) => {
+                console.log('Connection state:', state);
                 
-                switch(state) {
-                    case LivekitClient.ConnectionState.Connected:
-                        updateConnectionStatus('status-connected', 'Connected');
-                        break;
-                    case LivekitClient.ConnectionState.Connecting:
-                        updateConnectionStatus('status-connecting', 'Connecting...');
-                        break;
-                    case LivekitClient.ConnectionState.Disconnected:
-                        updateConnectionStatus('status-disconnected', 'Disconnected');
-                        break;
+                if (state === 'connected') {
+                    status.innerHTML = '<span class="connected">Connected</span>';
+                } else if (state === 'connecting') {
+                    status.innerHTML = '<span class="connecting">Connecting...</span>';
+                } else if (state === 'disconnected') {
+                    status.innerHTML = '<span class="error">Disconnected</span>';
                 }
             });
         }
-
-        // Publish Local Tracks
-        async function publishLocalTracks() {
-            try {
-                console.log('Publishing local tracks...');
-                
-                // Get user media
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 },
-                        frameRate: { ideal: 20 },
-                        facingMode: 'user'
-                    },
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true,
-                        channelCount: 1,
-                        sampleRate: 16000
-                    }
-                });
-                
-                // Create and publish tracks
-                for (const track of stream.getTracks()) {
-                    const options = {
-                        name: track.kind === 'video' ? 'webcam' : 'microphone'
-                    };
-                    
-                    await room.localParticipant.publishTrack(track, options);
-                    
-                    // Store track reference
-                    localTracks.push(track);
-                    
-                    // Handle local video
-                    if (track.kind === 'video') {
-                        const videoElement = document.getElementById('localVideo');
-                        if (videoElement) {
-                            track.attach(videoElement);
-                        }
-                    }
-                    
-                    // Handle local audio
-                    if (track.kind === 'audio') {
-                        // Monitor local audio levels
-                        monitorAudioLevel('local', track);
-                    }
-                }
-                
-                console.log('Local tracks published successfully');
-                
-            } catch (error) {
-                console.error('Error publishing local tracks:', error);
-                showError('Failed to access camera/microphone');
+        
+        // Toggle microphone
+        function toggleMic() {
+            if (!localStream) return;
+            
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                const micBtn = document.getElementById('mic');
+                micBtn.textContent = audioTrack.enabled ? 'Mute' : 'Unmute';
+                micBtn.style.background = audioTrack.enabled ? '#4CAF50' : '#666';
             }
         }
-
-        // Monitor Audio Levels
-        function monitorAudioLevel(participantId, audioTrack) {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const analyser = audioContext.createAnalyser();
-            const source = audioContext.createMediaStreamSource(new MediaStream([audioTrack]));
+        
+        // Toggle camera
+        function toggleCam() {
+            if (!localStream) return;
             
-            source.connect(analyser);
-            analyser.fftSize = 32;
-            const dataArray = new Uint8Array(analyser.frequencyBinCount);
-            
-            function checkAudio() {
-                analyser.getByteFrequencyData(dataArray);
-                const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-                
-                const indicator = document.getElementById(`audio-${participantId}`);
-                if (indicator) {
-                    if (average > 10) { // Audio is active
-                        indicator.classList.add('audio-active');
-                        indicator.style.display = 'block';
-                    } else {
-                        indicator.classList.remove('audio-active');
-                        indicator.style.display = 'none';
-                    }
-                }
-                
-                requestAnimationFrame(checkAudio);
-            }
-            
-            checkAudio();
-        }
-
-        // Toggle Microphone
-        async function toggleMic() {
-            if (!room || !room.localParticipant) return;
-            
-            try {
-                const audioTrack = localTracks.find(t => t.kind === 'audio');
-                if (audioTrack) {
-                    audioTrack.enabled = !audioTrack.enabled;
-                    
-                    const icon = micBtn.querySelector('i');
-                    const text = micBtn.querySelector('span');
-                    
-                    if (audioTrack.enabled) {
-                        micBtn.classList.remove('muted');
-                        icon.className = 'fas fa-microphone';
-                        text.textContent = 'Mute';
-                        localAudioIndicator.style.display = 'none';
-                    } else {
-                        micBtn.classList.add('muted');
-                        icon.className = 'fas fa-microphone-slash';
-                        text.textContent = 'Unmute';
-                        localAudioIndicator.style.display = 'block';
-                    }
-                }
-            } catch (error) {
-                console.error('Toggle mic error:', error);
+            const videoTrack = localStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                const camBtn = document.getElementById('cam');
+                camBtn.textContent = videoTrack.enabled ? 'Video Off' : 'Video On';
+                camBtn.style.background = videoTrack.enabled ? '#2196F3' : '#666';
+                localVideo.style.display = videoTrack.enabled ? 'block' : 'none';
             }
         }
-
-        // Toggle Camera
-        async function toggleCam() {
-            if (!room || !room.localParticipant) return;
-            
-            try {
-                const videoTrack = localTracks.find(t => t.kind === 'video');
-                if (videoTrack) {
-                    videoTrack.enabled = !videoTrack.enabled;
-                    
-                    const icon = camBtn.querySelector('i');
-                    const text = camBtn.querySelector('span');
-                    
-                    if (videoTrack.enabled) {
-                        camBtn.classList.remove('off');
-                        icon.className = 'fas fa-video';
-                        text.textContent = 'Video Off';
-                        localVideo.style.display = 'block';
-                    } else {
-                        camBtn.classList.add('off');
-                        icon.className = 'fas fa-video-slash';
-                        text.textContent = 'Video On';
-                        localVideo.style.display = 'none';
-                    }
-                }
-            } catch (error) {
-                console.error('Toggle cam error:', error);
-            }
-        }
-
-        // Leave Call
+        
+        // Leave call
         function leaveCall() {
             if (room) {
                 room.disconnect();
             }
             
-            // Stop all local tracks
-            localTracks.forEach(track => {
-                track.stop();
-            });
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
             
-            // Try to close the window if opened from Telegram WebApp
-            if (window.Telegram && window.Telegram.WebApp) {
-                window.Telegram.WebApp.close();
-            } else if (window.history.length > 1) {
+            // Close window or go back
+            if (window.history.length > 1) {
                 window.history.back();
             } else {
                 window.location.href = 'about:blank';
             }
         }
-
-        // Initialize App
-        async function initApp() {
-            console.log('Initializing video chat...');
-            
-            // Check if we have a token
-            const token = getTokenFromURL();
-            if (!token) {
-                showError('Invalid link: No token found');
-                return;
-            }
-            
-            // Show permission modal
-            showPermissionModal(true);
-            
-            // Set up allow button
-            allowBtn.addEventListener('click', async () => {
-                const granted = await requestMediaPermissions();
-                if (granted) {
-                    permissionGranted = true;
-                    await connectToRoom();
-                }
-            });
-            
-            // Also try to connect automatically after a delay (in case permissions were already granted)
-            setTimeout(async () => {
-                if (!permissionGranted) {
-                    try {
-                        // Try to get permissions without showing modal
-                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-                        stream.getTracks().forEach(track => track.stop());
-                        
-                        // Permissions already granted, connect automatically
-                        permissionGranted = true;
-                        showPermissionModal(false);
-                        await connectToRoom();
-                    } catch (e) {
-                        // Permissions not granted, wait for user to click allow
-                        console.log('Waiting for user to grant permissions...');
-                    }
-                }
-            }, 1000);
-        }
-
-        // Start when page loads
-        window.addEventListener('load', initApp);
-
-        // Handle beforeunload
-        window.addEventListener('beforeunload', () => {
-            if (room) {
-                room.disconnect();
+        
+        // Initialize
+        document.getElementById('allowBtn').addEventListener('click', requestPermissions);
+        
+        // Auto-start if permissions already granted
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Try to get permissions without asking
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: true, 
+                    video: true 
+                });
+                
+                // Permissions already granted
+                stream.getTracks().forEach(track => track.stop());
+                permissionModal.style.display = 'none';
+                await requestPermissions();
+                
+            } catch (error) {
+                // Show permission modal
+                console.log('Showing permission modal...');
             }
         });
     </script>
